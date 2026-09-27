@@ -1,0 +1,187 @@
+{
+  "model_version": "xgb-v1",
+  "model_type": "xgboost",
+  "training_dataset_version": "v1.0",
+  "feature_schema_version": "v2.0",
+  "training_date": "2026-09-26T12:08:11.123081+00:00",
+  "classes": [
+    "AGRICULTURAL_BURNING",
+    "GAS_FLARE",
+    "INDUSTRIAL_FIRE",
+    "MINING_ACTIVITY",
+    "PERSISTENT_INDUSTRIAL_THERMAL_SOURCE",
+    "WILDFIRE"
+  ],
+  "metrics": {
+    "accuracy": 0.3333,
+    "macro_precision": 0.125,
+    "macro_recall": 0.25,
+    "macro_f1": 0.1667,
+    "per_class": {
+      "AGRICULTURAL_BURNING": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1_score": 0.0
+      },
+      "GAS_FLARE": {
+        "precision": 0.5,
+        "recall": 1.0,
+        "f1_score": 0.667
+      },
+      "INDUSTRIAL_FIRE": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1_score": 0.0
+      },
+      "MINING_ACTIVITY": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1_score": 0.0
+      },
+      "PERSISTENT_INDUSTRIAL_THERMAL_SOURCE": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1_score": 0.0
+      },
+      "WILDFIRE": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1_score": 0.0
+      }
+    },
+    "confusion_matrix": {
+      "classes": [
+        "AGRICULTURAL_BURNING",
+        "GAS_FLARE",
+        "INDUSTRIAL_FIRE",
+        "MINING_ACTIVITY",
+        "PERSISTENT_INDUSTRIAL_THERMAL_SOURCE",
+        "WILDFIRE"
+      ],
+      "matrix": [
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          0,
+          0
+        ]
+      ]
+    }
+  },
+  "feature_columns": [
+    "frp",
+    "confidence",
+    "brightness_temperature",
+    "detection_count",
+    "active_days",
+    "duration_hours",
+    "mean_frp",
+    "max_frp",
+    "frp_std",
+    "frp_deviation_ratio",
+    "spatial_spread_meters",
+    "detection_frequency",
+    "temporal_status_code",
+    "distance_to_industrial_facility",
+    "is_industrial_land",
+    "land_cover_code",
+    "land_cover_category_code",
+    "has_satellite_data",
+    "cloud_coverage",
+    "ndvi",
+    "nbr",
+    "ndwi",
+    "swir_nir_ratio",
+    "burn_scar_detected",
+    "persistence_score",
+    "recurrence_score",
+    "abnormality_score"
+  ],
+  "feature_importances": {
+    "spatial_spread_meters": 0.1726,
+    "active_days": 0.1693,
+    "detection_count": 0.1675,
+    "confidence": 0.1605,
+    "mean_frp": 0.1473,
+    "frp": 0.1247,
+    "ndvi": 0.0577,
+    "frp_deviation_ratio": 0.0005,
+    "brightness_temperature": 0.0,
+    "duration_hours": 0.0,
+    "max_frp": 0.0,
+    "frp_std": 0.0,
+    "detection_frequency": 0.0,
+    "temporal_status_code": 0.0,
+    "distance_to_industrial_facility": 0.0,
+    "is_industrial_land": 0.0,
+    "land_cover_code": 0.0,
+    "land_cover_category_code": 0.0,
+    "has_satellite_data": 0.0,
+    "cloud_coverage": 0.0,
+    "nbr": 0.0,
+    "ndwi": 0.0,
+    "swir_nir_ratio": 0.0,
+    "burn_scar_detected": 0.0,
+    "persistence_score": 0.0,
+    "recurrence_score": 0.0,
+    "abnormality_score": 0.0
+  },
+  "split_metadata": {
+    "strategy": "cluster_grouped_shuffle_split",
+    "leakage_prevention": "strictly_partitioned_by_spatial_cluster_and_facility",
+    "total_records": 12,
+    "train_records": 9,
+    "test_records": 3,
+    "train_groups": 9,
+    "test_groups": 3
+  },
+  "library_versions": {
+    "xgboost": "3.4.1",
+    "scikit-learn": "1.9.1",
+    "numpy": "2.5.3"
+  },
+  "calibration_method": "uncalibrated_model_probability",
+  "is_calibrated": false
+}

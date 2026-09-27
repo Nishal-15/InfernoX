@@ -1,0 +1,9 @@
+{
+    "venvPath": "d:\\InfernoX\\backend",
+    "venv": "venv",
+    "extraPaths": [
+        "d:\\InfernoX\\backend"
+    ],
+    "reportMissingImports": "none",
+    "reportMissingModuleSource": "none"
+}
