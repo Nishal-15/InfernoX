@@ -176,7 +176,7 @@ export default function PipelineMonitorModal({
                   AUTONOMOUS PIPELINE TELEMETRY & NOC
                 </h2>
                 <span className="px-2 py-0.5 text-[10px] font-mono tracking-wider uppercase bg-orange-950 text-orange-400 border border-orange-800/50 rounded-full">
-                  Phase 8 Active
+                  Autonomous Engine Active
                 </span>
               </div>
               <p className="text-xs text-slate-400">

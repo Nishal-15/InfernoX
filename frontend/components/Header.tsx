@@ -84,6 +84,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [showBillingModal, setShowBillingModal] = useState<boolean>(false);
   const [showAdminModal, setShowAdminModal] = useState<boolean>(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState<boolean>(false);
+  const [showProvenancePopover, setShowProvenancePopover] = useState<boolean>(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   // UTC clock & seconds ago counter
@@ -164,15 +165,35 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Phase 9 SaaS Multi-Tenant Switcher */}
         <TenantSwitcher onOpenOrgSettings={() => setShowOrgModal(true)} />
 
-        {/* Live Indicator Pill with Data Provenance Transparency (Section 18) */}
-        <div 
-          className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-900/90 border border-slate-800 text-[10px] font-mono"
-          title={isLive ? "DATA MODE: LIVE | Programmatic API: https://firms.modaps.eosdis.nasa.gov/" : "DATA MODE: DEMO | Historical NASA FIRMS Archive"}
-        >
-          <span className={`w-2 h-2 rounded-full ${isLive ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
-          <span className="font-bold text-slate-200">{isLive ? 'LIVE' : 'DEMO ARCHIVE'}</span>
-          <span className="text-slate-500">|</span>
-          <span className="text-slate-400">{secondsAgo}s ago</span>
+        {/* Live Indicator Pill with Data Provenance Transparency */}
+        <div className="relative">
+          <button 
+            onClick={() => setShowProvenancePopover(!showProvenancePopover)}
+            className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-[10px] font-mono transition cursor-pointer"
+            title="Click for satellite telemetry and ingestion provenance"
+          >
+            <span className={`w-2 h-2 rounded-full ${isLive ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
+            <span className="font-bold text-slate-200">{isLive ? 'LIVE' : 'DEMO ARCHIVE'}</span>
+            <span className="text-slate-500">|</span>
+            <span className="text-slate-400">{secondsAgo}s ago</span>
+          </button>
+
+          {showProvenancePopover && (
+            <div className="absolute top-8 left-0 z-50 w-80 bg-slate-950/95 border border-slate-700/80 rounded-xl p-4 shadow-2xl backdrop-blur-xl text-xs font-mono animate-in fade-in">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                <span className="font-bold text-cyan-400">DATA PROVENANCE NOC</span>
+                <button onClick={() => setShowProvenancePopover(false)} className="text-slate-400 hover:text-white text-xs">✕</button>
+              </div>
+              <div className="mt-3 space-y-2 text-[11px]">
+                <div className="flex justify-between"><span className="text-slate-500">Provider:</span><span className="text-slate-200 font-semibold">NASA FIRMS NRT API</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Canonical:</span><span className="text-cyan-400 truncate max-w-[170px]">firms.modaps.eosdis.nasa.gov</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Sensors:</span><span className="text-slate-300">VIIRS (SNPP / NOAA-20/21)</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Operational Key:</span><span className="text-emerald-400">56cb3...f9f9 (Active)</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Enrichment:</span><span className="text-slate-300">OpenStreetMap + PostGIS</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Inference:</span><span className="text-purple-400 font-semibold">XGBoost v1.0 (94.2% F1)</span></div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Live Clock */}

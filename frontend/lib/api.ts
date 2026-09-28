@@ -643,6 +643,8 @@ export const getAnalyticsOverview = async (params: { range_preset?: string; star
   return response.data;
 };
 
+export const getAnalyticsSummary = getAnalyticsOverview;
+
 export const getAnalyticsTimeseries = async (params: { interval?: string; range_preset?: string; start_date?: string; end_date?: string; min_frp?: number } = {}) => {
   const response = await apiClient.get<TimeSeriesResponse>('/analytics/timeseries', { params });
   return response.data;
@@ -813,19 +815,37 @@ export interface ThermalIncidentResponse {
   title: string;
   status: string;
   severity: string;
+  classification?: string;
   risk_score: number;
-  primary_classification?: string;
-  centroid_lat: number;
-  centroid_lon: number;
-  first_seen: string;
-  last_seen: string;
-  observation_count: number;
-  alert_count: number;
-  facility_id?: number;
+  risk_level?: string;
+  centroid_latitude?: number;
+  centroid_longitude?: number;
+  centroid_lat?: number;
+  centroid_lon?: number;
+  first_detected_at?: string;
+  last_detected_at?: string;
+  first_seen?: string;
+  last_seen?: string;
+  duration_hours?: number;
+  event_count?: number;
+  observation_count?: number;
+  peak_frp?: number;
+  mean_frp?: number;
+  primary_facility_id?: number;
+  primary_facility_name?: string;
+  distance_to_facility_meters?: number;
+  incident_summary_json?: Record<string, any>;
   summary?: string;
   analyst_notes?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface ThermalIncidentListResponse {
+  items: ThermalIncidentResponse[];
+  total: number;
+  active_count: number;
+  critical_count: number;
 }
 
 export interface DemoTriggerResponse {
@@ -878,15 +898,20 @@ export const getAutonomousAuditLogs = async (limit: number = 50): Promise<Autono
 export const getIncidents = async (params: {
   status?: string;
   severity?: string;
+  classification?: string;
   limit?: number;
   offset?: number;
-} = {}): Promise<ThermalIncidentResponse[]> => {
-  const response = await apiClient.get<ThermalIncidentResponse[]>('/incidents', { params });
+} = {}): Promise<ThermalIncidentListResponse> => {
+  const response = await apiClient.get<ThermalIncidentListResponse>('/incidents', { params });
   return response.data;
 };
 
-export const getIncidentDetail = async (id: number): Promise<ThermalIncidentResponse> => {
-  const response = await apiClient.get<ThermalIncidentResponse>(`/incidents/${id}`);
+export const getIncidentDetail = async (id: number): Promise<{
+  incident: ThermalIncidentResponse;
+  events: any[];
+  alerts: any[];
+}> => {
+  const response = await apiClient.get(`/incidents/${id}`);
   return response.data;
 };
 
@@ -895,8 +920,9 @@ export const updateIncidentStatus = async (
   status: string,
   analystNotes?: string
 ): Promise<ThermalIncidentResponse> => {
-  const response = await apiClient.patch<ThermalIncidentResponse>(`/incidents/${id}/status`, null, {
-    params: { status, analyst_notes: analystNotes }
+  const response = await apiClient.patch<ThermalIncidentResponse>(`/incidents/${id}/status`, {
+    status,
+    analyst_notes: analystNotes
   });
   return response.data;
 };

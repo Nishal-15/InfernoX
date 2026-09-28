@@ -615,11 +615,16 @@ class PipelineRunner:
             db.commit()
 
             new_event_ids: List[int] = ingest_res.get("inserted_event_ids", [])
-            logger.info(f"Incremental ingestion fetched {job.records_received} records, {len(new_event_ids)} newly inserted.")
+            # Also discover any unassessed events in the database to guarantee total pipeline coverage
+            unassessed = db.query(ThermalEvent.id).outerjoin(
+                EventAssessment, ThermalEvent.id == EventAssessment.event_id
+            ).filter(EventAssessment.id.is_(None)).all()
+            target_ids = list(dict.fromkeys(new_event_ids + [r[0] for r in unassessed]))
+            logger.info(f"Incremental ingestion fetched {job.records_received} records. Processing {len(target_ids)} events.")
 
             succeeded = 0
             failed = 0
-            for ev_id in new_event_ids:
+            for ev_id in target_ids:
                 try:
                     await cls.process_event(
                         db=db,
@@ -632,7 +637,7 @@ class PipelineRunner:
                     failed += 1
                     logger.error(f"Event {ev_id} failed pipeline processing: {ev_err}")
 
-            job.records_processed = len(new_event_ids)
+            job.records_processed = len(target_ids)
             job.records_succeeded = succeeded
             job.records_failed = failed
             job.duration_seconds = round(time.perf_counter() - t_start, 2)

@@ -3,7 +3,7 @@
   "model_type": "xgboost",
   "training_dataset_version": "test-v1.0",
   "feature_schema_version": "v2.0",
-  "training_date": "2026-09-28T09:31:03.907380+00:00",
+  "training_date": "2026-09-28T10:28:56.705072+00:00",
   "classes": [
     "AGRICULTURAL_BURNING",
     "GAS_FLARE",

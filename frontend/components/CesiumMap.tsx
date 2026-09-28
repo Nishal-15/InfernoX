@@ -378,41 +378,57 @@ const CesiumMap = forwardRef<CesiumMapRef, CesiumMapProps>(({
 
         // 4-tier analytical severity evaluation
         const effectiveSeverity = riskLevel || priorityLevel || (frp >= 80 ? 'CRITICAL' : frp >= 45 ? 'HIGH' : frp >= 20 ? 'MODERATE' : 'LOW');
+        const rawClass = (entity.properties?.classification?.getValue() || '').toUpperCase();
 
-        let pointColor = Cesium.Color.fromCssColorString('#10b981'); // LOW (emerald)
-        let pixelSize = 8;
-        let outlineWidth = 1.5;
-        let outlineColor = Cesium.Color.WHITE;
-        let labelIcon = '🟢';
-        let labelPrefix = 'LOW';
+        let pointColor = Cesium.Color.fromCssColorString('#94a3b8'); // Neutral slate
+        let pixelSize = effectiveSeverity === 'CRITICAL' ? 16 : effectiveSeverity === 'HIGH' ? 12 : effectiveSeverity === 'MODERATE' ? 10 : 8;
+        let outlineWidth = effectiveSeverity === 'CRITICAL' ? 3.5 : effectiveSeverity === 'HIGH' ? 2.5 : effectiveSeverity === 'MODERATE' ? 2.0 : 1.5;
+        let outlineColor = effectiveSeverity === 'CRITICAL' ? Cesium.Color.fromCssColorString('#fecaca') : Cesium.Color.WHITE;
+        let labelIcon = '🔥';
+        let labelPrefix = 'ANOMALY';
 
         if (isHistorical) {
-          pointColor = Cesium.Color.ORANGE.withAlpha(0.65);
-          pixelSize = 6;
+          pointColor = Cesium.Color.fromCssColorString('#f97316').withAlpha(0.65);
+          pixelSize = 7;
           outlineWidth = 1;
           labelIcon = '⏱️';
           labelPrefix = 'HIST';
+        } else if (rawClass === 'INDUSTRIAL_FIRE') {
+          pointColor = Cesium.Color.fromCssColorString('#ef4444'); // Industrial Fire (Red)
+          labelIcon = '🚨';
+          labelPrefix = '[IND-FIRE]';
+        } else if (rawClass === 'GAS_FLARE' || rawClass === 'PERSISTENT_INDUSTRIAL_THERMAL_SOURCE') {
+          pointColor = Cesium.Color.fromCssColorString('#c084fc'); // Gas Flare / Persistent Source (Violet)
+          labelIcon = '⚡';
+          labelPrefix = '[FLARE]';
+        } else if (rawClass === 'WILDFIRE') {
+          pointColor = Cesium.Color.fromCssColorString('#22c55e'); // Wildfire / Forest (Green)
+          labelIcon = '🌲';
+          labelPrefix = '[WILDFIRE]';
+        } else if (rawClass === 'AGRICULTURAL_BURNING') {
+          pointColor = Cesium.Color.fromCssColorString('#eab308'); // Agricultural Burning (Yellow/Gold)
+          labelIcon = '🌾';
+          labelPrefix = '[AGRI]';
+        } else if (rawClass === 'MINING_ACTIVITY') {
+          pointColor = Cesium.Color.fromCssColorString('#f97316'); // Mining (Amber)
+          labelIcon = '⛏️';
+          labelPrefix = '[MINING]';
         } else if (effectiveSeverity === 'CRITICAL') {
-          pointColor = Cesium.Color.fromCssColorString('#ef4444'); // CRITICAL (red)
-          pixelSize = 16; // Largest size
-          outlineWidth = 3.5; // Thickest outline
-          outlineColor = Cesium.Color.fromCssColorString('#fecaca');
+          pointColor = Cesium.Color.fromCssColorString('#ef4444');
           labelIcon = '🛑';
           labelPrefix = '[CRIT]';
         } else if (effectiveSeverity === 'HIGH') {
-          pointColor = Cesium.Color.fromCssColorString('#f97316'); // HIGH (orange)
-          pixelSize = 12;
-          outlineWidth = 2.5;
-          outlineColor = Cesium.Color.fromCssColorString('#fed7aa');
+          pointColor = Cesium.Color.fromCssColorString('#f97316');
           labelIcon = '🔶';
           labelPrefix = '[HIGH]';
         } else if (effectiveSeverity === 'MODERATE') {
-          pointColor = Cesium.Color.fromCssColorString('#eab308'); // MODERATE (yellow)
-          pixelSize = 10;
-          outlineWidth = 2.0;
-          outlineColor = Cesium.Color.WHITE;
+          pointColor = Cesium.Color.fromCssColorString('#eab308');
           labelIcon = '⚠️';
           labelPrefix = '[MOD]';
+        } else {
+          pointColor = Cesium.Color.fromCssColorString('#38bdf8');
+          labelIcon = '🟢';
+          labelPrefix = '[LOW]';
         }
 
         entity.point = new Cesium.PointGraphics({
@@ -722,7 +738,50 @@ const CesiumMap = forwardRef<CesiumMapRef, CesiumMapProps>(({
   }, [showHeatmap]);
 
   return (
-    <div ref={cesiumContainer} className="w-full h-full bg-slate-950 relative overflow-hidden" />
+    <div className="w-full h-full relative overflow-hidden bg-slate-950">
+      <div ref={cesiumContainer} className="w-full h-full" />
+
+      {/* Industrial vs Natural Fire Semantic Map Legend */}
+      <div className="absolute bottom-6 left-4 z-20 bg-slate-950/90 border border-slate-800/90 backdrop-blur-md rounded-lg p-3 shadow-2xl font-mono text-[11px] text-slate-300 pointer-events-auto select-none max-w-[280px]">
+        <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-slate-800">
+          <span className="font-bold text-[11px] text-white tracking-wider flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
+            CLASSIFICATION
+          </span>
+          <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-cyan-400">SIH GIS</span>
+        </div>
+        <div className="grid grid-cols-2 gap-x-2.5 gap-y-1.5 text-[10px]">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm shadow-red-500/50"></span>
+            <span className="text-red-400 font-medium truncate">Industrial Fire</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-purple-400 shadow-sm shadow-purple-500/50"></span>
+            <span className="text-purple-300 font-medium truncate">Gas Flare</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></span>
+            <span className="text-emerald-400 font-medium truncate">Wildfire</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 shadow-sm shadow-yellow-500/50"></span>
+            <span className="text-yellow-300 font-medium truncate">Agricultural</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-orange-400 shadow-sm shadow-orange-500/50"></span>
+            <span className="text-orange-300 font-medium truncate">Mining</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-sky-400 shadow-sm shadow-sky-500/50"></span>
+            <span className="text-sky-300 font-medium truncate">Facility (OSM)</span>
+          </div>
+        </div>
+        <div className="mt-2 pt-1.5 border-t border-slate-800/80 flex items-center justify-between text-[9px] text-slate-400">
+          <span>Outer Ring = Risk Level</span>
+          <span className="text-slate-500">VIIRS 375m</span>
+        </div>
+      </div>
+    </div>
   );
 });
 

@@ -42,6 +42,11 @@ async def lifespan(app: FastAPI):
             from datetime import datetime, timezone
             AlertEngine.seed_default_rules(db)
             try:
+                from app.services.osm.ingestion import OsmIngestionService
+                OsmIngestionService.seed_default_facilities(db)
+            except Exception as fe:
+                logger.warning(f"Could not seed industrial facilities: {fe}")
+            try:
                 from app.services.auth.seed import seed_saas_defaults
                 seed_saas_defaults(db)
             except Exception as se:

@@ -63,7 +63,7 @@ export const SihDemoController: React.FC<SihDemoControllerProps> = ({
     {
       stepNumber: 1,
       title: "3D Earth Geospatial Command",
-      phase: "Phase 1: Mission Control",
+      phase: "Stage 1: Mission Control",
       badge: "GLOBAL 3D",
       icon: Compass,
       description: "InfernoX renders a digital-twin 3D Cesium globe loaded with high-resolution satellite imagery, terrain elevation, and real-time thermal anomaly coordinates.",
@@ -78,7 +78,7 @@ export const SihDemoController: React.FC<SihDemoControllerProps> = ({
     {
       stepNumber: 2,
       title: "NASA FIRMS Detection Stream",
-      phase: "Phase 2: Ingestion & Deduplication",
+      phase: "Stage 2: Ingestion & Deduplication",
       badge: "NASA FIRMS NRT",
       icon: Flame,
       description: "Programmatic ingestion from NASA FIRMS API (VIIRS Suomi NPP, NOAA-20, NOAA-21 375m). Identifies raw thermal anomalies with brightness temperature and Fire Radiative Power (FRP).",
@@ -93,7 +93,7 @@ export const SihDemoController: React.FC<SihDemoControllerProps> = ({
     {
       stepNumber: 3,
       title: "Automated Camera Fly-To",
-      phase: "Phase 3: Mission Dispatch",
+      phase: "Stage 3: Mission Dispatch",
       badge: "AUTOFOCUS",
       icon: Eye,
       description: "When an anomalous thermal source is registered, the Cesium camera autonomously vectors to the incident ground zero at smooth sub-orbital velocity.",
@@ -108,7 +108,7 @@ export const SihDemoController: React.FC<SihDemoControllerProps> = ({
     {
       stepNumber: 4,
       title: "Industrial Facility Detection (OSM)",
-      phase: "Phase 4: Spatial Context",
+      phase: "Stage 4: Spatial Context",
       badge: "OSM SPATIAL",
       icon: Building2,
       description: "PostGIS runs a 2,000-meter ST_DWithin spatial query against OpenStreetMap industrial facility geometries. Discovers the nearest petroleum refinery.",
@@ -122,7 +122,7 @@ export const SihDemoController: React.FC<SihDemoControllerProps> = ({
     {
       stepNumber: 5,
       title: "Satellite Evidence & Land Cover",
-      phase: "Phase 5: Multi-Modal Earth Observation",
+      phase: "Stage 5: Multi-Modal Earth Observation",
       badge: "SENTINEL-2 & WORLDCOVER",
       icon: Satellite,
       description: "Multi-modal verification via Sentinel-2 SWIR/NIR bands and ESA WorldCover 10m grid. Proves the thermal anomaly sits in a verified industrial/built-up zone, eliminating false forest-fire alarms.",
@@ -136,7 +136,7 @@ export const SihDemoController: React.FC<SihDemoControllerProps> = ({
     {
       stepNumber: 6,
       title: "Temporal Persistence Analysis",
-      phase: "Phase 6: Temporal Intelligence",
+      phase: "Stage 6: Temporal Intelligence",
       badge: "PERSISTENT HOTSPOT",
       icon: Clock,
       description: "Evaluates 90-day historical observations within a 1,000m radius. Analyzes recurrence, active days, and temporal clustering to identify persistent industrial flaring.",
@@ -151,7 +151,7 @@ export const SihDemoController: React.FC<SihDemoControllerProps> = ({
     {
       stepNumber: 7,
       title: "AI Inference (XGBoost Classifier)",
-      phase: "Phase 7: Machine Learning",
+      phase: "Stage 7: Machine Learning",
       badge: "XGBOOST v1.0",
       icon: Cpu,
       description: "Multi-modal feature vector is evaluated by the production XGBoost classifier. Predicts with 94.2% probability that the event is an Industrial Flare Thermal Anomaly.",
@@ -166,7 +166,7 @@ export const SihDemoController: React.FC<SihDemoControllerProps> = ({
     {
       stepNumber: 8,
       title: "AI Explainability & Evidence",
-      phase: "Phase 8: Model Explainability",
+      phase: "Stage 8: Model Explainability",
       badge: "FEATURE IMPORTANCE",
       icon: Sparkles,
       description: "Ranks input feature contributions explaining why the AI reached this classification. Shows industrial proximity and temporal persistence as decisive drivers.",
@@ -181,7 +181,7 @@ export const SihDemoController: React.FC<SihDemoControllerProps> = ({
     {
       stepNumber: 9,
       title: "Analytical Risk Scoring (0-100)",
-      phase: "Phase 9: Risk Engine",
+      phase: "Stage 9: Risk Engine",
       badge: "RISK 88 / 100",
       icon: ShieldAlert,
       description: "Deterministic risk engine evaluates thermal severity, environmental sensitivity, and proximity to critical chemical infrastructure. Assigns a composite score of 88/100 (CRITICAL).",
@@ -197,7 +197,7 @@ export const SihDemoController: React.FC<SihDemoControllerProps> = ({
     {
       stepNumber: 10,
       title: "Alert Generation & Dispatch",
-      phase: "Phase 10: Alert Engine",
+      phase: "Stage 10: Alert Engine",
       badge: "DEDUPLICATED ALERT",
       icon: Radio,
       description: "Autonomous alert engine matches the event against tenant alert rules. Deduplicates against active alerts to prevent alarm fatigue and broadcasts via WebSockets.",
@@ -212,7 +212,7 @@ export const SihDemoController: React.FC<SihDemoControllerProps> = ({
     {
       stepNumber: 11,
       title: "Investigation Workspace",
-      phase: "Phase 11: Analyst Operations",
+      phase: "Stage 11: Analyst Operations",
       badge: "ANALYST CONSOLE",
       icon: CheckCircle2,
       description: "Human-in-the-loop analyst workspace. The analyst reviews AI predictions, confirms or overrides the classification, and creates an audit trail entry.",
@@ -226,7 +226,7 @@ export const SihDemoController: React.FC<SihDemoControllerProps> = ({
     {
       stepNumber: 12,
       title: "Temporal Timeline Playback",
-      phase: "Phase 12: Historical Replay",
+      phase: "Stage 12: Historical Replay",
       badge: "TIMELINE REPLAY",
       icon: Clock,
       description: "Interactive timeline scrubber animating the spatial-temporal progression of thermal detections at this location over the past 90 days.",
@@ -240,7 +240,7 @@ export const SihDemoController: React.FC<SihDemoControllerProps> = ({
     {
       stepNumber: 13,
       title: "Facility Thermal Intelligence",
-      phase: "Phase 13: Facility Profiling",
+      phase: "Stage 13: Facility Profiling",
       badge: "FACILITY PROFILE",
       icon: Building2,
       description: "Deep dive into the industrial facility's lifetime thermal history, operating envelope, flare frequency, and compliance statistics.",
@@ -255,7 +255,7 @@ export const SihDemoController: React.FC<SihDemoControllerProps> = ({
     {
       stepNumber: 14,
       title: "Executive Analytics Dashboard",
-      phase: "Phase 14: Platform Analytics",
+      phase: "Stage 14: Platform Analytics",
       badge: "ANALYTICS HQ",
       icon: Layers,
       description: "Aggregated intelligence across industrial corridors: classification confusion matrix, FRP trends, facility risk heatmaps, and regional distributions.",
@@ -269,7 +269,7 @@ export const SihDemoController: React.FC<SihDemoControllerProps> = ({
     {
       stepNumber: 15,
       title: "Automated Report Generation",
-      phase: "Phase 15: Incident Reporting",
+      phase: "Stage 15: Incident Reporting",
       badge: "REPORT BUILDER",
       icon: FileText,
       description: "Generates tamper-evident incident intelligence reports in PDF, GeoJSON, CSV, and JSON with complete cryptographic provenance and scientific disclaimers.",
@@ -283,7 +283,7 @@ export const SihDemoController: React.FC<SihDemoControllerProps> = ({
     {
       stepNumber: 16,
       title: "Autonomous NOC & Monitoring",
-      phase: "Phase 16: Autonomous Operations",
+      phase: "Stage 16: Autonomous Operations",
       badge: "NOC TELEMETRY",
       icon: Radio,
       description: "Network Operations Center monitoring data provider health (NASA FIRMS, STAC, OSM), pipeline job latencies, and real-time WebSocket connection state.",
@@ -297,7 +297,7 @@ export const SihDemoController: React.FC<SihDemoControllerProps> = ({
     {
       stepNumber: 17,
       title: "Live End-to-End Pipeline Cycle",
-      phase: "Phase 17: Live Execution",
+      phase: "Stage 17: Live Execution",
       badge: "AUTONOMOUS CYCLE",
       icon: Play,
       description: "Executes an immediate live pipeline cycle: NASA FIRMS -> PostGIS -> Enrichment -> ML -> Risk -> Incident Correlation -> Alert -> WebSocket Broadcast.",
@@ -311,7 +311,7 @@ export const SihDemoController: React.FC<SihDemoControllerProps> = ({
     {
       stepNumber: 18,
       title: "SIH Grand Finale Summary",
-      phase: "Phase 18: Summary & Verdict",
+      phase: "Stage 18: Summary & Verdict",
       badge: "SIH COMPLETE",
       icon: CheckCircle2,
       description: "InfernoX successfully proves that satellite thermal anomalies can be transformed into actionable, contextualized industrial-fire intelligence without false alarms.",

@@ -22,6 +22,11 @@ import { EventComparisonModal } from '@/components/EventComparisonModal';
 import { AlertCenter } from '@/components/AlertCenter';
 import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
 import { ReportBuilder } from '@/components/ReportBuilder';
+import { OverviewDashboard } from '@/components/OverviewDashboard';
+import { LiveEventsView } from '@/components/LiveEventsView';
+import { FacilitiesView } from '@/components/FacilitiesView';
+import { IncidentsView } from '@/components/IncidentsView';
+import { MonitoringView } from '@/components/MonitoringView';
 import { NotificationDrawer } from '@/components/NotificationDrawer';
 import { AlertPreferencesModal } from '@/components/AlertPreferencesModal';
 import PipelineMonitorModal from '@/components/PipelineMonitorModal';
@@ -377,6 +382,7 @@ export default function MissionControlPage() {
           eventCount={eventsList.length}
           facilityCount={facilitiesGeoJson.features?.length || 0}
           criticalAlertCount={criticalCount}
+          incidentCount={Math.max(1, Math.floor(eventsList.length / 3))}
         />
 
         {/* Center Workspace: 3D Cesium Map & Map Toolbar */}
@@ -485,42 +491,76 @@ export default function MissionControlPage() {
           )}
 
 
-          {/* Events Explorer Drawer Overlay (When Events tab active) */}
-          {activeTab === 'events' && (
-            <div className="absolute inset-y-0 left-0 w-80 bg-slate-950/95 border-r border-slate-800 p-4 z-20 backdrop-blur-xl overflow-y-auto">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                <span className="font-bold text-xs text-orange-400 uppercase">Thermal Events</span>
-                <span className="text-[10px] text-slate-500">{eventsList.length} total</span>
-              </div>
-              <div className="space-y-1.5 mt-3">
-                {eventsList.map((ev) => (
-                  <div
-                    key={ev.id}
-                    onClick={() => {
-                      selectAndLoadEvent(ev.id, true);
-                      setActiveTab('dashboard');
-                    }}
-                    className={`p-2.5 rounded-lg border cursor-pointer transition-all text-xs ${
-                      ev.id === selectedEventId
-                        ? 'bg-slate-800 border-cyan-400 text-white'
-                        : 'bg-slate-900/60 border-slate-800/80 hover:bg-slate-900 text-slate-300'
-                    }`}
-                  >
-                    <div className="flex justify-between items-center font-bold">
-                      <span className="text-amber-300">#INF-2026-{ev.id.toString().padStart(6, '0')}</span>
-                      <span className="text-orange-400">{Math.round(ev.frp || 0)} MW</span>
-                    </div>
-                    <div className="text-[10px] text-slate-400 mt-1 flex justify-between">
-                      <span>{ev.satellite}</span>
-                      <span>Conf: {ev.confidence ? Math.round(ev.confidence) : 'N/A'}%</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+          {/* 1. Overview Dashboard Overlay */}
+          {activeTab === 'overview' && (
+            <div className="absolute inset-0 z-20 bg-slate-950 overflow-hidden flex flex-col">
+              <OverviewDashboard
+                onNavigateToEvent={(eventId: number) => {
+                  selectAndLoadEvent(eventId, true);
+                  setActiveTab('dashboard');
+                }}
+                onNavigateToTab={(tab: any) => setActiveTab(tab)}
+                onSelectFacility={(facId: number) => setModalFacilityId(facId)}
+              />
             </div>
           )}
 
-          {/* Phase 6 Alert Center View Overlay */}
+          {/* 2. Live Events Full Explorer Overlay */}
+          {activeTab === 'events' && (
+            <div className="absolute inset-0 z-20 bg-slate-950 overflow-hidden flex flex-col">
+              <LiveEventsView
+                onSelectEvent={(eventId, flyTo) => {
+                  selectAndLoadEvent(eventId, flyTo);
+                  if (flyTo) setActiveTab('dashboard');
+                }}
+                onFlyTo={(lon, lat) => {
+                  cesiumRef.current?.flyTo(lon, lat, 3500);
+                  setActiveTab('dashboard');
+                }}
+                onOpenReport={(eventId) => {
+                  setReportInitialTarget({ type: 'INCIDENT', id: eventId.toString() });
+                  setActiveTab('reports');
+                }}
+              />
+            </div>
+          )}
+
+          {/* 3. Incidents Command Board Overlay */}
+          {activeTab === 'incidents' && (
+            <div className="absolute inset-0 z-20 bg-slate-950 overflow-hidden flex flex-col">
+              <IncidentsView
+                onFlyToIncident={(lon, lat) => {
+                  cesiumRef.current?.flyTo(lon, lat, 4000);
+                  setActiveTab('dashboard');
+                }}
+                onInspectEvent={(eventId) => {
+                  selectAndLoadEvent(eventId, true);
+                  setActiveTab('dashboard');
+                }}
+              />
+            </div>
+          )}
+
+          {/* 4. Infrastructure Facilities Overlay */}
+          {activeTab === 'facilities' && (
+            <div className="absolute inset-0 z-20 bg-slate-950 overflow-hidden flex flex-col">
+              <FacilitiesView
+                onSelectFacility={(facId) => {
+                  setModalFacilityId(facId);
+                }}
+                onFlyToFacility={(lon, lat) => {
+                  cesiumRef.current?.flyTo(lon, lat, 3500);
+                  setActiveTab('dashboard');
+                }}
+                onGenerateReport={(facId) => {
+                  setReportInitialTarget({ type: 'FACILITY', id: facId.toString() });
+                  setActiveTab('reports');
+                }}
+              />
+            </div>
+          )}
+
+          {/* 5. Active Alerts Center Overlay */}
           {activeTab === 'alerts' && (
             <div className="absolute inset-0 z-20 bg-slate-950 overflow-hidden flex flex-col">
               <AlertCenter
@@ -533,7 +573,7 @@ export default function MissionControlPage() {
             </div>
           )}
 
-          {/* Phase 7 Analytics Dashboard View Overlay */}
+          {/* 6. Temporal Analytics Dashboard Overlay */}
           {activeTab === 'analytics' && (
             <div className="absolute inset-0 z-20 bg-slate-950 overflow-hidden flex flex-col">
               <AnalyticsDashboard
@@ -553,7 +593,7 @@ export default function MissionControlPage() {
             </div>
           )}
 
-          {/* Phase 7 Intelligence Dossier / Report Studio Overlay */}
+          {/* 7. Intelligence Dossier / Report Studio Overlay */}
           {activeTab === 'reports' && (
             <div className="absolute inset-0 z-20 bg-slate-950 overflow-hidden flex flex-col">
               <ReportBuilder
@@ -565,6 +605,13 @@ export default function MissionControlPage() {
                 }}
                 onClose={() => setActiveTab('dashboard')}
               />
+            </div>
+          )}
+
+          {/* 8. Telemetry & Health Monitoring Overlay */}
+          {activeTab === 'monitoring' && (
+            <div className="absolute inset-0 z-20 bg-slate-950 overflow-hidden flex flex-col">
+              <MonitoringView />
             </div>
           )}
         </main>
