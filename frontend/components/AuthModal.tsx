@@ -71,22 +71,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialTa
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-      <div className="relative w-full max-w-md bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div 
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto"
+    >
+      <div className="relative w-full max-w-md my-auto max-h-[92vh] flex flex-col bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-800">
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500 to-rose-600 text-slate-950 shadow-md">
               <Flame size={20} className="fill-current" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white tracking-wide">InfernoX Platform</h2>
+              <h2 className="text-base font-bold text-white tracking-wide">InfernoX Platform</h2>
               <p className="text-xs text-slate-400">Enterprise Thermal Intelligence SaaS</p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            title="Close"
           >
             <X size={18} />
           </button>
@@ -126,7 +133,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialTa
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto max-h-[55vh]">
           {tab === 'register' && (
             <>
               <div>
@@ -216,7 +223,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialTa
               type="button"
               disabled={loading}
               onClick={() => handleQuickDemo('admin')}
-              className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 transition-colors"
+              className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 transition-colors cursor-pointer"
             >
               <ShieldCheck size={14} className="text-amber-400" />
               <span>Super Admin</span>
@@ -225,10 +232,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialTa
               type="button"
               disabled={loading}
               onClick={() => handleQuickDemo('analyst')}
-              className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 transition-colors"
+              className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 transition-colors cursor-pointer"
             >
               <User size={14} className="text-blue-400" />
               <span>Lead Analyst</span>
+            </button>
+          </div>
+
+          <div className="mt-3 text-center">
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-xs text-slate-400 hover:text-cyan-300 underline underline-offset-4 transition-colors cursor-pointer"
+            >
+              Skip and continue exploring without sign-in →
             </button>
           </div>
         </div>
