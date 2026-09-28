@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Float, DateTime, Integer, func, UniqueConstraint # type: ignore
+from sqlalchemy import Column, String, Float, DateTime, Integer, func, UniqueConstraint, JSON # type: ignore
 from sqlalchemy.dialects.postgresql import JSONB # type: ignore
 from geoalchemy2 import Geometry # type: ignore
 from app.db.database import Base
@@ -19,7 +19,7 @@ class Facility(Base):
     geometry = Column(Geometry(geometry_type='POINT', srid=4326, spatial_index=True), nullable=False)
     
     operator = Column(String, nullable=True)
-    tags = Column(JSONB, nullable=True) # Store raw OSM tags
+    tags = Column(JSON().with_variant(JSONB, "postgresql"), nullable=True) # Store raw OSM tags
     source = Column(String, nullable=False, default="OpenStreetMap")
     
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

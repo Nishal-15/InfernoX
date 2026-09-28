@@ -290,10 +290,12 @@ class HealthMonitor:
 
     @classmethod
     async def get_all_providers(cls) -> List[Dict[str, Any]]:
-        """Collects health status of all data providers."""
-        firms = await cls.check_firms_provider()
-        stac = await cls.check_sentinel_stac()
-        osm = await cls.check_osm_overpass()
+        """Collects health status of all data providers concurrently."""
+        import asyncio
+        firms_task = cls.check_firms_provider()
+        stac_task = cls.check_sentinel_stac()
+        osm_task = cls.check_osm_overpass()
+        firms, stac, osm = await asyncio.gather(firms_task, stac_task, osm_task)
         ml = cls.check_ml_model()
         worldcover = cls.check_worldcover_provider()
         return [firms, stac, osm, ml, worldcover]

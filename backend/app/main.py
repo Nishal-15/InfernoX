@@ -32,6 +32,7 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Initializing database tables...")
     try:
+        import app.models
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables initialized successfully.")
         db = SessionLocal()

@@ -239,7 +239,9 @@ class FirmsIngestionService:
         Converges into the exact same PostGIS spatial-temporal intelligence pipeline.
         """
         import asyncio
-        base_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "historical", "firms")
+        from pathlib import Path
+        backend_dir = Path(__file__).resolve().parents[3]
+        base_dir = str(backend_dir / "data" / "historical" / "firms")
         if not os.path.exists(base_dir):
             base_dir = os.path.join("data", "historical", "firms")
 
@@ -251,30 +253,38 @@ class FirmsIngestionService:
         total_rejected = 0
         files_processed = []
 
-        for fpath in files:
-            try:
-                with open(fpath, "r", encoding="utf-8") as f:
-                    content = f.read()
-                file_year = os.path.basename(os.path.dirname(fpath))
-                source_label = f"HISTORICAL_FIRMS_{file_year}"
-                loop = asyncio.get_event_loop()
-                res = loop.run_until_complete(self.ingest_csv_content(
-                    db=db,
-                    csv_data=content,
-                    source_label=source_label,
-                    provenance_notes=f"Loaded from archive file: {os.path.basename(fpath)}"
-                )) if loop.is_running() else asyncio.run(self.ingest_csv_content(
-                    db=db,
-                    csv_data=content,
-                    source_label=source_label,
-                    provenance_notes=f"Loaded from archive file: {os.path.basename(fpath)}"
-                ))
-                total_inserted += res["inserted"]
-                total_skipped += res["skipped"]
-                total_rejected += res["rejected"]
-                files_processed.append(os.path.basename(fpath))
-            except Exception as e:
-                logger.error(f"Error importing historical file {fpath}: {e}")
+        async def _run_all():
+            nonlocal total_inserted, total_skipped, total_rejected, files_processed
+            for fpath in files:
+                try:
+                    with open(fpath, "r", encoding="utf-8") as f:
+                        content = f.read()
+                    file_year = os.path.basename(os.path.dirname(fpath))
+                    source_label = f"HISTORICAL_FIRMS_{file_year}"
+                    res = await self.ingest_csv_content(
+                        db=db,
+                        csv_data=content,
+                        source_label=source_label,
+                        provenance_notes=f"Loaded from archive file: {os.path.basename(fpath)}"
+                    )
+                    total_inserted += res["inserted"]
+                    total_skipped += res["skipped"]
+                    total_rejected += res["rejected"]
+                    files_processed.append(os.path.basename(fpath))
+                except Exception as e:
+                    logger.error(f"Error importing historical file {fpath}: {e}")
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                pool.submit(lambda: asyncio.run(_run_all())).result()
+        else:
+            asyncio.run(_run_all())
 
         return {
             "status": "COMPLETED",
