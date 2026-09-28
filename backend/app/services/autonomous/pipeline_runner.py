@@ -351,7 +351,9 @@ class PipelineRunner:
                     evidence_factors=classification_result.get("evidence_factors", []),
                     model_type="xgboost",
                     model_version=classifier.model_version,
-                    feature_schema_version="v2.0"
+                    feature_schema_version="v2.0",
+                    prediction_timestamp=datetime.now(timezone.utc),
+                    feature_snapshot=feat_safe
                 )
                 db.add(assessment)
             else:
@@ -361,6 +363,8 @@ class PipelineRunner:
                 assessment.priority_level = priority_level
                 assessment.model_version = classifier.model_version
                 assessment.evidence_factors = classification_result.get("evidence_factors", [])
+                assessment.prediction_timestamp = datetime.now(timezone.utc)
+                assessment.feature_snapshot = feat_safe
             
             db.commit()
 

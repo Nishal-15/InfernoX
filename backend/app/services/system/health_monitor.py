@@ -61,57 +61,114 @@ class HealthMonitor:
 
     @classmethod
     async def check_firms_provider(cls) -> Dict[str, Any]:
+        """
+        Monitors NASA FIRMS programmatic API status (Section 7).
+        Identifies: AVAILABLE, DEGRADED, RATE_LIMITED, UNAVAILABLE.
+        Preserves last_successful_sync, records_last_sync, and active satellite sources.
+        Never exposes the secret FIRMS_MAP_KEY.
+        """
+        from app.services.firms.ingestion import FIRMS_SYNC_STATE
         t0 = time.perf_counter()
+
+        active_sources = [s.get("source_name") for s in getattr(settings, "FIRMS_SOURCES_REGISTRY", []) if s.get("enabled", True)]
+        if not active_sources:
+            active_sources = [settings.FIRMS_SOURCE]
+
         if not settings.FIRMS_MAP_KEY:
-            status = "HEALTHY" if settings.DEMO_MODE or settings.DEMO_EVENT_ENABLED else "DEGRADED"
-            msg = "DEMO provider mode active (no FIRMS_MAP_KEY configured)" if status == "HEALTHY" else "FIRMS_MAP_KEY is missing"
+            is_demo = settings.DEMO_MODE or getattr(settings, "DEMO_EVENT_ENABLED", False)
+            status = "AVAILABLE" if is_demo else "DEGRADED"
+            msg = "DEMO provider mode active (Historical/Synthetic archive, live API key not configured)" if is_demo else "API key is missing from configuration"
             return {
                 "provider": "NASA FIRMS",
                 "status": status,
                 "latency_ms": 1.2,
                 "last_successful_request": datetime.now(timezone.utc).isoformat(),
-                "last_failure": None if status == "HEALTHY" else datetime.now(timezone.utc).isoformat(),
-                "failure_count": 0 if status == "HEALTHY" else 1,
+                "last_successful_sync": FIRMS_SYNC_STATE.get("last_successful_sync"),
+                "last_failure": None if status == "AVAILABLE" else datetime.now(timezone.utc).isoformat(),
+                "records_last_sync": FIRMS_SYNC_STATE.get("records_last_sync", 0),
+                "failure_count": 0 if status == "AVAILABLE" else 1,
+                "active_sources": active_sources,
                 "message": msg,
-                "details": {"source": settings.FIRMS_SOURCE, "mode": "DEMO/NRT"}
+                "details": {
+                    "source": settings.FIRMS_SOURCE,
+                    "mode": "DEMO_MODE" if is_demo else "UNCONFIGURED",
+                    "base_url": "https://firms.modaps.eosdis.nasa.gov/api"
+                }
             }
 
         try:
+            base_url = (getattr(settings, "FIRMS_BASE_URL", None) or settings.FIRMS_API_BASE_URL).rstrip("/")
             async with httpx.AsyncClient(timeout=4.0) as client:
-                res = await client.get(f"{settings.FIRMS_API_BASE_URL}/area/csv/{settings.FIRMS_MAP_KEY}/{settings.FIRMS_SOURCE}/{settings.FIRMS_AREA}/1")
+                res = await client.get(f"{base_url}/area/csv/{settings.FIRMS_MAP_KEY}/{settings.FIRMS_SOURCE}/{settings.FIRMS_AREA}/1")
                 latency_ms = round((time.perf_counter() - t0) * 1000, 2)
+                
                 if res.status_code == 200:
+                    status = "AVAILABLE"
+                    msg = "NASA FIRMS API responding normally"
                     return {
                         "provider": "NASA FIRMS",
-                        "status": "HEALTHY",
+                        "status": status,
                         "latency_ms": latency_ms,
                         "last_successful_request": datetime.now(timezone.utc).isoformat(),
+                        "last_successful_sync": FIRMS_SYNC_STATE.get("last_successful_sync") or datetime.now(timezone.utc).isoformat(),
                         "last_failure": None,
+                        "records_last_sync": FIRMS_SYNC_STATE.get("records_last_sync", 0),
                         "failure_count": 0,
-                        "message": "NASA FIRMS API responding normally",
+                        "active_sources": active_sources,
+                        "message": msg,
                         "details": {"source": settings.FIRMS_SOURCE, "area": settings.FIRMS_AREA}
                     }
+                elif res.status_code == 429:
+                    status = "RATE_LIMITED"
+                    msg = "NASA FIRMS API rate limit reached (HTTP 429)"
+                elif res.status_code in [500, 502, 503, 504]:
+                    status = "UNAVAILABLE"
+                    msg = f"NASA FIRMS API gateway failure (HTTP {res.status_code})"
                 else:
-                    return {
-                        "provider": "NASA FIRMS",
-                        "status": "DEGRADED",
-                        "latency_ms": latency_ms,
-                        "last_successful_request": None,
-                        "last_failure": datetime.now(timezone.utc).isoformat(),
-                        "failure_count": 1,
-                        "message": f"HTTP {res.status_code} returned by FIRMS API",
-                        "details": {"response": res.text[:100]}
-                    }
+                    status = "DEGRADED"
+                    msg = f"HTTP {res.status_code} returned by NASA FIRMS API"
+
+                return {
+                    "provider": "NASA FIRMS",
+                    "status": status,
+                    "latency_ms": latency_ms,
+                    "last_successful_request": FIRMS_SYNC_STATE.get("last_successful_sync"),
+                    "last_successful_sync": FIRMS_SYNC_STATE.get("last_successful_sync"),
+                    "last_failure": datetime.now(timezone.utc).isoformat(),
+                    "records_last_sync": FIRMS_SYNC_STATE.get("records_last_sync", 0),
+                    "failure_count": 1,
+                    "active_sources": active_sources,
+                    "message": msg,
+                    "details": {"source": settings.FIRMS_SOURCE}
+                }
+        except httpx.TimeoutException:
+            latency_ms = round((time.perf_counter() - t0) * 1000, 2)
+            return {
+                "provider": "NASA FIRMS",
+                "status": "DEGRADED",
+                "latency_ms": latency_ms,
+                "last_successful_request": FIRMS_SYNC_STATE.get("last_successful_sync"),
+                "last_successful_sync": FIRMS_SYNC_STATE.get("last_successful_sync"),
+                "last_failure": datetime.now(timezone.utc).isoformat(),
+                "records_last_sync": FIRMS_SYNC_STATE.get("records_last_sync", 0),
+                "failure_count": 1,
+                "active_sources": active_sources,
+                "message": "NASA FIRMS provider request timed out (degraded)",
+                "details": {}
+            }
         except Exception as e:
             latency_ms = round((time.perf_counter() - t0) * 1000, 2)
             return {
                 "provider": "NASA FIRMS",
                 "status": "UNAVAILABLE",
                 "latency_ms": latency_ms,
-                "last_successful_request": None,
+                "last_successful_request": FIRMS_SYNC_STATE.get("last_successful_sync"),
+                "last_successful_sync": FIRMS_SYNC_STATE.get("last_successful_sync"),
                 "last_failure": datetime.now(timezone.utc).isoformat(),
+                "records_last_sync": FIRMS_SYNC_STATE.get("records_last_sync", 0),
                 "failure_count": 1,
-                "message": f"FIRMS provider connection failed: {str(e)}",
+                "active_sources": active_sources,
+                "message": f"NASA FIRMS provider connection failed: {type(e).__name__}",
                 "details": {}
             }
 

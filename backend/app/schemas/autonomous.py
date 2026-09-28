@@ -45,11 +45,14 @@ class PipelineJobListResponse(BaseModel):
 
 class ProviderHealthInfo(BaseModel):
     provider: str
-    status: str  # HEALTHY, DEGRADED, UNAVAILABLE, UNKNOWN
+    status: str  # AVAILABLE, HEALTHY, DEGRADED, RATE_LIMITED, UNAVAILABLE
     latency_ms: float = 0.0
     last_successful_request: Optional[str] = None
+    last_successful_sync: Optional[str] = None
     last_failure: Optional[str] = None
+    records_last_sync: int = 0
     failure_count: int = 0
+    active_sources: List[str] = Field(default_factory=list)
     message: Optional[str] = None
     details: Dict[str, Any] = Field(default_factory=dict)
 

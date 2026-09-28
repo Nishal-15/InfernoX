@@ -30,6 +30,9 @@ services:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - POSTGRES_DB=${POSTGRES_DB:-thermal_db}
+      - FIRMS_BASE_URL=${FIRMS_BASE_URL:-https://firms.modaps.eosdis.nasa.gov/api}
+      - FIRMS_MAP_KEY=${FIRMS_MAP_KEY:-}
+      - DEMO_MODE=${DEMO_MODE:-false}
     volumes:
       - ./backend:/app
     depends_on:
@@ -49,8 +52,8 @@ services:
       - /app/node_modules
       - /app/.next
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
-      - CESIUM_ION_ACCESS_TOKEN=${CESIUM_ION_ACCESS_TOKEN}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
+      - NEXT_PUBLIC_CESIUM_ION_ACCESS_TOKEN=${NEXT_PUBLIC_CESIUM_ION_ACCESS_TOKEN}
     depends_on:
       - backend
 

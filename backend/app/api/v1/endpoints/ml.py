@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -175,7 +176,9 @@ def predict_event(event_id: int, db: Session = Depends(get_db)):
         explanation=[{"feature": a["feature"], "impact": a["importance_weight"], "text": a["description"]} for a in prediction.get("top_contributing_features", [])],
         model_type=prediction.get("model_type", "xgboost"),
         model_version=prediction.get("model_version", settings.ACTIVE_MODEL_VERSION),
-        feature_schema_version=prediction.get("feature_schema_version", "v2.0")
+        feature_schema_version=prediction.get("feature_schema_version", "v2.0"),
+        prediction_timestamp=datetime.now(timezone.utc),
+        feature_snapshot=features.to_ml_dict()
     )
     db.add(assessment)
     db.commit()

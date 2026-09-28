@@ -78,6 +78,31 @@ async def trigger_firms_ingestion(
     service = FirmsIngestionService()
     return await service.ingest_data(db, use_demo_if_missing_key=use_demo_data)
 
+@router.post("/firms/historical")
+def trigger_historical_firms_ingestion(
+    year: Optional[int] = Query(None, description="Optional target year (2024, 2025, 2026)"),
+    db: Session = Depends(get_db)
+):
+    """
+    Triggers ingestion of archived NASA FIRMS historical datasets (Section 6).
+    Flows through the exact same normalized intelligence pipeline into PostGIS.
+    """
+    service = FirmsIngestionService()
+    return service.ingest_historical_data(db, year=year)
+
+@router.get("/firms/sources")
+def list_configured_sources():
+    """
+    Returns the centralized satellite source configuration registry (Section 5).
+    """
+    from app.services.firms.client import FirmsClient
+    client = FirmsClient()
+    return {
+        "enabled_sources": client.get_enabled_sources(),
+        "default_source": client.default_source,
+        "base_url": client.base_url
+    }
+
 @router.post("/osm")
 async def trigger_osm_ingestion(db: Session = Depends(get_db)):
     """

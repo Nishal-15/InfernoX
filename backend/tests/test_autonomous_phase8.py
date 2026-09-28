@@ -109,6 +109,8 @@ def client_and_session():
                 model_type VARCHAR NOT NULL DEFAULT 'xgboost',
                 model_version VARCHAR NOT NULL DEFAULT 'xgb-v1',
                 feature_schema_version VARCHAR NOT NULL DEFAULT 'v2.0',
+                prediction_timestamp TIMESTAMP,
+                feature_snapshot TEXT,
                 created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
         """))

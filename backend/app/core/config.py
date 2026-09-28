@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Union, Any, Dict
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import AnyHttpUrl, field_validator, model_validator
 
@@ -36,8 +36,55 @@ class Settings(BaseSettings):
     FIRMS_SOURCE: str = "VIIRS_SNPP_NRT"
     FIRMS_AREA: str = "68,7,97,36" # Default India BBOX
     FIRMS_DAYS: int = 1
+    FIRMS_BASE_URL: str = "https://firms.modaps.eosdis.nasa.gov/api"
     FIRMS_API_BASE_URL: str = "https://firms.modaps.eosdis.nasa.gov/api"
     FIRMS_INGEST_INTERVAL_MINUTES: int = 15
+    HISTORICAL_DATA_DIR: str = "data/historical/firms"
+
+    # Multi-Satellite Source Registry (Section 5)
+    # Configurable satellite instruments with priority, refresh interval, and activation flag
+    FIRMS_SOURCES_REGISTRY: list[dict[str, Any]] = [
+        {
+            "source_name": "VIIRS_SNPP_NRT",
+            "enabled": True,
+            "priority": 1,
+            "refresh_interval_minutes": 15,
+            "satellite": "Suomi NPP",
+            "instrument": "VIIRS",
+            "resolution_m": 375,
+            "description": "Suomi NPP VIIRS 375m active fire data (Primary NRT)"
+        },
+        {
+            "source_name": "VIIRS_NOAA20_NRT",
+            "enabled": True,
+            "priority": 2,
+            "refresh_interval_minutes": 15,
+            "satellite": "NOAA-20",
+            "instrument": "VIIRS",
+            "resolution_m": 375,
+            "description": "NOAA-20 (JPSS-1) VIIRS 375m active fire data"
+        },
+        {
+            "source_name": "VIIRS_NOAA21_NRT",
+            "enabled": True,
+            "priority": 3,
+            "refresh_interval_minutes": 15,
+            "satellite": "NOAA-21",
+            "instrument": "VIIRS",
+            "resolution_m": 375,
+            "description": "NOAA-21 (JPSS-2) VIIRS 375m active fire data"
+        },
+        {
+            "source_name": "MODIS_NRT",
+            "enabled": False,
+            "priority": 4,
+            "refresh_interval_minutes": 60,
+            "satellite": "Terra/Aqua",
+            "instrument": "MODIS",
+            "resolution_m": 1000,
+            "description": "Terra and Aqua MODIS 1km active fire data (Secondary)"
+        }
+    ]
 
     # OSM Configuration
     OSM_OVERPASS_URL: str = "https://overpass-api.de/api/interpreter"

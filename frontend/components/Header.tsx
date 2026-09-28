@@ -40,12 +40,15 @@ interface HeaderProps {
   onOpenNotifications?: () => void;
   onOpenPreferences?: () => void;
   unreadNotificationsCount?: number;
-  // Phase 8 additions
+  // Phase 8 & 10 additions
   isLive?: boolean;
   lastUpdateTimestamp?: Date | null;
   autoFlyEnabled?: boolean;
   onToggleAutoFly?: () => void;
   onOpenPipelineModal?: () => void;
+  onOpenSihBrief?: () => void;
+  onToggleGuidedDemo?: () => void;
+  isGuidedDemoActive?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -60,7 +63,10 @@ export const Header: React.FC<HeaderProps> = ({
   lastUpdateTimestamp,
   autoFlyEnabled = false,
   onToggleAutoFly,
-  onOpenPipelineModal
+  onOpenPipelineModal,
+  onOpenSihBrief,
+  onToggleGuidedDemo,
+  isGuidedDemoActive = false
 }) => {
   const [utcTime, setUtcTime] = useState<string>('');
   const [secondsAgo, setSecondsAgo] = useState<number>(0);
@@ -158,10 +164,13 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Phase 9 SaaS Multi-Tenant Switcher */}
         <TenantSwitcher onOpenOrgSettings={() => setShowOrgModal(true)} />
 
-        {/* Live Indicator Pill */}
-        <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-900/90 border border-slate-800 text-[10px] font-mono">
-          <span className={`w-2 h-2 rounded-full ${isLive ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'}`}></span>
-          <span className="font-bold text-slate-200">{isLive ? 'LIVE' : 'DISCONNECTED'}</span>
+        {/* Live Indicator Pill with Data Provenance Transparency (Section 18) */}
+        <div 
+          className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-900/90 border border-slate-800 text-[10px] font-mono"
+          title={isLive ? "DATA MODE: LIVE | Programmatic API: https://firms.modaps.eosdis.nasa.gov/" : "DATA MODE: DEMO | Historical NASA FIRMS Archive"}
+        >
+          <span className={`w-2 h-2 rounded-full ${isLive ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
+          <span className="font-bold text-slate-200">{isLive ? 'LIVE' : 'DEMO ARCHIVE'}</span>
           <span className="text-slate-500">|</span>
           <span className="text-slate-400">{secondsAgo}s ago</span>
         </div>
@@ -289,6 +298,34 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Alerts & Notifications Actions */}
         <div className="flex items-center gap-1.5">
+          {/* SIH Defense Brief Button (Section 27) */}
+          {onOpenSihBrief && (
+            <button
+              onClick={onOpenSihBrief}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-gradient-to-r from-orange-950/80 to-amber-950/80 border border-orange-600/70 hover:border-orange-500 text-orange-300 hover:text-white text-[10px] font-mono transition-all shadow-sm cursor-pointer"
+              title="Open SIH Judge Defense & Problem Solution Brief"
+            >
+              <span>🔥</span>
+              <span className="font-bold">SIH BRIEF</span>
+            </button>
+          )}
+
+          {/* SIH 18-Step Guided Demo Button (Section 17 & 30) */}
+          {onToggleGuidedDemo && (
+            <button
+              onClick={onToggleGuidedDemo}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-mono border transition-all cursor-pointer ${
+                isGuidedDemoActive
+                  ? 'bg-amber-400 text-slate-950 font-bold border-amber-300 shadow-md shadow-amber-400/30'
+                  : 'bg-slate-900 border-slate-800 text-amber-300 hover:bg-slate-800 hover:border-amber-600/60'
+              }`}
+              title="Toggle 18-Step Autonomous SIH Guided Demo Walkthrough"
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${isGuidedDemoActive ? 'bg-slate-950' : 'bg-amber-400 animate-ping'}`}></span>
+              <span>18-STEP DEMO</span>
+            </button>
+          )}
+
           {/* Auto-Fly Toggle Button */}
           <button
             onClick={onToggleAutoFly}

@@ -1,4 +1,7 @@
+import os
+import glob
 import logging
+from typing import Optional, Dict, Any, List
 from sqlalchemy.orm import Session
 from app.services.firms.client import FirmsClient
 from app.services.firms.parser import FirmsParser
@@ -11,6 +14,16 @@ from datetime import datetime, timezone
 from sqlalchemy.dialects.postgresql import insert
 
 logger = logging.getLogger(__name__)
+
+# Real-time synchronization telemetry cache for provider health inspection (Section 7)
+FIRMS_SYNC_STATE: Dict[str, Any] = {
+    "status": "AVAILABLE",
+    "last_successful_sync": None,
+    "last_failure": None,
+    "records_last_sync": 0,
+    "failure_count": 0,
+    "active_sources": ["VIIRS_SNPP_NRT", "VIIRS_NOAA20_NRT", "VIIRS_NOAA21_NRT"]
+}
 
 # Sample verified FIRMS CSV data for demo/test mode when no API key is provided
 DEMO_FIRMS_CSV = """latitude,longitude,brightness,scan,track,acq_date,acq_time,satellite,instrument,confidence,version,bright_t31,frp,daynight
@@ -128,12 +141,23 @@ class FirmsIngestionService:
             job.status = status
             job.completed_at = datetime.now(timezone.utc)
             db.commit()
+
+            # Update telemetry cache for health monitor
+            FIRMS_SYNC_STATE["status"] = "AVAILABLE"
+            FIRMS_SYNC_STATE["last_successful_sync"] = datetime.now(timezone.utc).isoformat()
+            FIRMS_SYNC_STATE["records_last_sync"] = result["inserted"]
+            FIRMS_SYNC_STATE["failure_count"] = 0
             
         except Exception as e:
             db.rollback()
             logger.error(f"Ingestion failed: {e}")
             result["status"] = "FAILED"
             result["error"] = str(e)
+
+            FIRMS_SYNC_STATE["last_failure"] = datetime.now(timezone.utc).isoformat()
+            FIRMS_SYNC_STATE["failure_count"] += 1
+            FIRMS_SYNC_STATE["status"] = "RATE_LIMITED" if "429" in str(e) else ("DEGRADED" if FIRMS_SYNC_STATE["failure_count"] < 3 else "UNAVAILABLE")
+
             if job.id != -1:
                 try:
                     job.status = "FAILED"
@@ -144,6 +168,121 @@ class FirmsIngestionService:
                     logger.error(f"Failed to record failed job status: {commit_err}")
             
         return result
+
+    async def ingest_csv_content(
+        self,
+        db: Session,
+        csv_data: str,
+        source_label: str = "HISTORICAL_NASA_FIRMS",
+        provenance_notes: Optional[str] = None
+    ) -> dict:
+        """
+        Normalized ingestion for historical and external FIRMS CSV datasets (Section 6).
+        Routes directly through Parser -> Validator -> Normalizer -> PostGIS deduplication.
+        Preserves all physical observation attributes and data provenance.
+        """
+        records = self.parser.parse_csv(csv_data)
+        result = {
+            "source": source_label,
+            "fetched": len(records),
+            "inserted": 0,
+            "skipped": 0,
+            "rejected": 0,
+            "provenance": {
+                "source": source_label,
+                "source_url": "https://firms.modaps.eosdis.nasa.gov/",
+                "ingested_at": datetime.now(timezone.utc).isoformat(),
+                "notes": provenance_notes or "Historical FIRMS Verified Observation Pipeline"
+            }
+        }
+
+        for record in records:
+            is_valid, reason = self.validator.validate(record)
+            if not is_valid:
+                result["rejected"] += 1
+                continue
+
+            normalized = self.normalizer.normalize(record)
+            normalized.source = source_label
+
+            stmt = insert(ThermalEvent).values(
+                source=normalized.source,
+                latitude=normalized.latitude,
+                longitude=normalized.longitude,
+                geometry=f"SRID=4326;POINT({normalized.longitude} {normalized.latitude})",
+                detected_at=normalized.detected_at,
+                acquired_at=normalized.acquired_at,
+                satellite=normalized.satellite,
+                instrument=normalized.instrument,
+                confidence=normalized.confidence,
+                frp=normalized.frp,
+                brightness_temperature=normalized.brightness_temperature,
+                day_night=normalized.day_night,
+                scan=normalized.scan,
+                track=normalized.track
+            ).on_conflict_do_nothing(
+                constraint='_thermal_event_uc'
+            )
+
+            exec_result = db.execute(stmt)
+            if exec_result.rowcount > 0:
+                result["inserted"] += 1
+            else:
+                result["skipped"] += 1
+
+        db.commit()
+        return result
+
+    def ingest_historical_data(self, db: Session, year: Optional[int] = None) -> dict:
+        """
+        Discovers and ingests all historical FIRMS CSV files from backend/data/historical/firms/ (Section 6).
+        Converges into the exact same PostGIS spatial-temporal intelligence pipeline.
+        """
+        import asyncio
+        base_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "historical", "firms")
+        if not os.path.exists(base_dir):
+            base_dir = os.path.join("data", "historical", "firms")
+
+        pattern = f"{base_dir}/**/*.csv" if not year else f"{base_dir}/{year}/*.csv"
+        files = glob.glob(pattern, recursive=True)
+
+        total_inserted = 0
+        total_skipped = 0
+        total_rejected = 0
+        files_processed = []
+
+        for fpath in files:
+            try:
+                with open(fpath, "r", encoding="utf-8") as f:
+                    content = f.read()
+                file_year = os.path.basename(os.path.dirname(fpath))
+                source_label = f"HISTORICAL_FIRMS_{file_year}"
+                loop = asyncio.get_event_loop()
+                res = loop.run_until_complete(self.ingest_csv_content(
+                    db=db,
+                    csv_data=content,
+                    source_label=source_label,
+                    provenance_notes=f"Loaded from archive file: {os.path.basename(fpath)}"
+                )) if loop.is_running() else asyncio.run(self.ingest_csv_content(
+                    db=db,
+                    csv_data=content,
+                    source_label=source_label,
+                    provenance_notes=f"Loaded from archive file: {os.path.basename(fpath)}"
+                ))
+                total_inserted += res["inserted"]
+                total_skipped += res["skipped"]
+                total_rejected += res["rejected"]
+                files_processed.append(os.path.basename(fpath))
+            except Exception as e:
+                logger.error(f"Error importing historical file {fpath}: {e}")
+
+        return {
+            "status": "COMPLETED",
+            "files_processed": files_processed,
+            "total_inserted": total_inserted,
+            "total_skipped": total_skipped,
+            "total_rejected": total_rejected
+        }
 
     async def ingest_incremental(self, db: Session, use_demo: bool = False) -> dict:
         """

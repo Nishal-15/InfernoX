@@ -437,7 +437,9 @@ def classify_event(event_id: int, db: Session = Depends(get_db)):
         explanation=classification_res.get("explanation"),
         model_type=classification_res["model_type"],
         model_version=classification_res["model_version"],
-        feature_schema_version="v2.0"
+        feature_schema_version="v2.0",
+        prediction_timestamp=datetime.now(timezone.utc),
+        feature_snapshot=features.to_ml_dict()
     )
 
     db.add(assessment)

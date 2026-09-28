@@ -22,6 +22,10 @@ class EventAssessment(Base):
     model_version = Column(String, default="phase3-v1.0", nullable=False)
     feature_schema_version = Column(String, default="v1.1", nullable=False)
     
+    # Phase 10: Model inference reproducibility and telemetry (Section 11)
+    prediction_timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=True)
+    feature_snapshot = Column(JSON, nullable=True)
+
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
 class AnalystReview(Base):

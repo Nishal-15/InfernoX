@@ -5,11 +5,12 @@
 InfernoX is an AI-assisted geospatial intelligence platform designed to ingest satellite thermal anomaly data (NASA FIRMS), combine it with industrial infrastructure maps (OpenStreetMap), ESA WorldCover 10m land-use data, Sentinel-2 MSI multispectral remote sensing, and historical persistence clustering to detect, classify, and triage industrial fires, gas flares, and persistent thermal sources.
 
 > [!IMPORTANT]
-> **Notice on Current Phase**: The platform is operating in **Phase 8 — Real-Time Autonomous Monitoring & Intelligence**. InfernoX has transitioned from a request-driven analytics platform into a continuously operating autonomous geospatial thermal intelligence system. The autonomous pipeline continuously executes:
+> **Notice on Current Phase**: The platform is operating in **Phase 10 — Production Deployment, SIH Demo, Final Polish & Data-Source Hardening**.
+> InfernoX is production-ready, featuring official NASA FIRMS integration (`https://firms.modaps.eosdis.nasa.gov/`), multi-satellite sensor fallback (`VIIRS_SNPP_NRT`, `VIIRS_NOAA20_NRT`, `VIIRS_NOAA21_NRT`), verified historical FIRMS archives (2024–2026), dedicated SIH 18-step guided demo mode, judge-friendly defense brief modal, and full ML provenance tracking.
 >
-> $$\text{NASA FIRMS} \rightarrow \text{Incremental Ingestion} \rightarrow \text{Validation/Normalization/Deduplication} \rightarrow \text{Spatial Context} \rightarrow \text{Temporal History} \rightarrow \text{Feature Vector} \rightarrow \text{XGBoost Classification} \rightarrow \text{Satellite/Cover Evidence} \rightarrow \text{Thermal Incident Clustering} \rightarrow \text{Risk Engine} \rightarrow \text{Anti-Storm Alert Engine} \rightarrow \text{WebSocket Broadcast} \rightarrow \text{Cesium Live Mode} \rightarrow \text{Audit Trail}$$
+> $$\text{NASA FIRMS (Multi-Sensor/Historical)} \rightarrow \text{Validation/Dedup} \rightarrow \text{Spatial Enrichment (PostGIS/OSM)} \rightarrow \text{Temporal Dynamics} \rightarrow \text{Feature Snapshot} \rightarrow \text{ML Classification} \rightarrow \text{Incident Clustering} \rightarrow \text{Risk Engine} \rightarrow \text{Anti-Storm Alerts} \rightarrow \text{WebSocket Broadcast} \rightarrow \text{3D Cesium Mission Control}$$
 >
-> *Safety & Human-in-the-Loop*: Autonomous operations do NOT replace human analysts. AI classifications and risk levels remain preliminary until confirmed by human investigation (`HUMAN_ANALYST` vs. `AUTONOMOUS_PIPELINE` audit isolation). External emergency dispatch channels remain guarded (`integration_enabled = False`).
+> *Safety & Data Transparency*: In demo environments, historical and synthetic observations are transparently labeled as `DEMO (Verified Historical Archive)`. Live NASA FIRMS queries strictly utilize the official endpoint. Classifications maintain explicit provenance (`AI Preliminary` vs. `Analyst Confirmed`).
 
 ---
 
@@ -158,6 +159,12 @@ $env:PYTHONPATH="."
 - `GET    /api/v1/incidents/{id}`: Detailed incident dossier with grouped detections and alert counts
 - `PATCH  /api/v1/incidents/{id}/status`: Human analyst status confirmation (`CONTAINED`, `RESOLVED`, `FALSE_POSITIVE`)
 - `WS     /api/v1/ws/stream`: Real-time bidirectional WebSocket stream for live events and telemetry
+### Phase 10 Production Deployment & Data-Source Hardening
+- `GET    /api/v1/system/providers/firms`: Dedicated NASA FIRMS provider health probe with masked telemetry
+- `POST   /api/v1/ingestion/firms/historical`: Normalized ingestion of historical FIRMS CSV datasets (2024, 2025, 2026)
+- `GET    /api/v1/ingestion/firms/sources`: Multi-satellite sensor registry (`VIIRS_SNPP_NRT`, `VIIRS_NOAA20_NRT`, `VIIRS_NOAA21_NRT`)
+- `POST   /api/v1/events/{id}/analyst-review`: Human-in-the-loop analyst confirmation distinguishing AI vs. analyst decisions
+
 
 ---
 

@@ -25,6 +25,8 @@ import { ReportBuilder } from '@/components/ReportBuilder';
 import { NotificationDrawer } from '@/components/NotificationDrawer';
 import { AlertPreferencesModal } from '@/components/AlertPreferencesModal';
 import PipelineMonitorModal from '@/components/PipelineMonitorModal';
+import { SihDemoController } from '@/components/SihDemoController';
+import { SihLandingExplainerModal } from '@/components/SihLandingExplainerModal';
 import { useWebSocket, WebSocketEvent } from '@/lib/useWebSocket';
 import { CesiumMapRef, ClusterPoint, EventContextPayload } from '@/components/CesiumMap';
 
@@ -59,6 +61,8 @@ export default function MissionControlPage() {
   // Navigation & Workspace State
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
   const [activeModelVersion, setActiveModelVersion] = useState<string>('xgb-v1');
+  const [showSihBrief, setShowSihBrief] = useState<boolean>(false);
+  const [showGuidedDemo, setShowGuidedDemo] = useState<boolean>(false);
 
   // Layer States
   const [layers, setLayers] = useState({
@@ -359,6 +363,9 @@ export default function MissionControlPage() {
         autoFlyEnabled={autoFlyEnabled}
         onToggleAutoFly={() => setAutoFlyEnabled(prev => !prev)}
         onOpenPipelineModal={() => setIsPipelineModalOpen(true)}
+        onOpenSihBrief={() => setShowSihBrief(true)}
+        onToggleGuidedDemo={() => setShowGuidedDemo(prev => !prev)}
+        isGuidedDemoActive={showGuidedDemo}
       />
 
       {/* 2. Main Middle Workspace */}
@@ -645,6 +652,32 @@ export default function MissionControlPage() {
             cesiumRef.current?.flyTo(lon, lat, 4000);
           }
         }}
+      />
+
+      {/* 7. SIH Judge Defense & Problem Solution Explainer Modal (Section 27) */}
+      <SihLandingExplainerModal
+        isOpen={showSihBrief}
+        onClose={() => setShowSihBrief(false)}
+        onStartDemo={() => {
+          setShowSihBrief(false);
+          setShowGuidedDemo(true);
+        }}
+      />
+
+      {/* 8. SIH 18-Step Autonomous Guided Demo Controller (Section 17, 18, 30) */}
+      <SihDemoController
+        isOpen={showGuidedDemo}
+        onClose={() => setShowGuidedDemo(false)}
+        onFlyToCoordinates={(lat, lon, height) => {
+          cesiumRef.current?.flyTo(lon, lat, height ?? 15000);
+        }}
+        onSelectEventId={(id) => {
+          selectAndLoadEvent(id, true);
+        }}
+        onNavigateTab={(tab) => {
+          setActiveTab(tab);
+        }}
+        isLiveMode={isConnected}
       />
     </div>
   );

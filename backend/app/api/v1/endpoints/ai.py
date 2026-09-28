@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -63,7 +64,9 @@ def predict_event(event_id: int, db: Session = Depends(get_db)):
         explanation=classification_res.get("explanation"),
         model_type=classification_res["model_type"],
         model_version=classification_res["model_version"],
-        feature_schema_version="v1.1"
+        feature_schema_version="v1.1",
+        prediction_timestamp=datetime.now(timezone.utc),
+        feature_snapshot=features.to_ml_dict()
     )
     
     db.add(assessment)
@@ -110,7 +113,9 @@ def predict_batch(request: BatchInferenceRequest, db: Session = Depends(get_db))
             explanation=classification_res.get("explanation"),
             model_type=classification_res["model_type"],
             model_version=classification_res["model_version"],
-            feature_schema_version="v1.1"
+            feature_schema_version="v1.1",
+            prediction_timestamp=datetime.now(timezone.utc),
+            feature_snapshot=features.to_ml_dict()
         )
         db.add(assessment)
         results.append(assessment)
