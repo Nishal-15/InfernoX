@@ -40,6 +40,11 @@ async def lifespan(app: FastAPI):
             from app.models.pipeline import PipelineJob
             from datetime import datetime, timezone
             AlertEngine.seed_default_rules(db)
+            try:
+                from app.services.auth.seed import seed_saas_defaults
+                seed_saas_defaults(db)
+            except Exception as se:
+                logger.warning(f"Could not seed SaaS defaults: {se}")
 
             # Restart recovery: Mark unfinished running jobs as INTERRUPTED
             interrupted = db.query(PipelineJob).filter(PipelineJob.status.in_(["RUNNING", "QUEUED"])).all()
@@ -89,6 +94,17 @@ if settings.BACKEND_CORS_ORIGINS:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
+
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
 

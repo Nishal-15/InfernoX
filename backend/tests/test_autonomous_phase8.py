@@ -127,6 +127,7 @@ def client_and_session():
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS alert_rules (
                 id INTEGER PRIMARY KEY,
+                organization_id INTEGER,
                 name VARCHAR(128) UNIQUE NOT NULL,
                 description VARCHAR(256),
                 enabled BOOLEAN NOT NULL DEFAULT 1,
@@ -140,6 +141,7 @@ def client_and_session():
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS alerts (
                 id INTEGER PRIMARY KEY,
+                organization_id INTEGER,
                 alert_code VARCHAR(64) UNIQUE NOT NULL,
                 event_id INTEGER NOT NULL,
                 incident_id INTEGER,

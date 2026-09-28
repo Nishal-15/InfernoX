@@ -17,7 +17,11 @@ from app.api.v1.endpoints import (
     reports,
     system,
     incidents,
-    ws
+    ws,
+    auth,
+    organizations,
+    billing,
+    admin
 )
 
 api_router = APIRouter()
@@ -53,5 +57,10 @@ api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(system.router, prefix="/system", tags=["system"])
 api_router.include_router(incidents.router, prefix="/incidents", tags=["incidents"])
 api_router.include_router(ws.router, prefix="/ws", tags=["websocket"])
+api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+api_router.include_router(organizations.router, prefix="/organizations", tags=["organizations"])
+api_router.include_router(billing.router, prefix="/billing", tags=["billing"])
+api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
+
 
 

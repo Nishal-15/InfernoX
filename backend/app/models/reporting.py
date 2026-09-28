@@ -19,5 +19,7 @@ class GeneratedReport(Base):
     summary_json = Column(JSON, nullable=False, default=dict)
     provenance_json = Column(JSON, nullable=False, default=dict)
     format = Column(String(16), default="JSON", nullable=False)  # PDF, CSV, GEOJSON, JSON
+    organization_id = Column(Integer, nullable=True, index=True)
     created_at = Column(DateTime, default=utc_now, nullable=False, index=True)
     created_by = Column(String(128), default="analyst-default", nullable=False)
+

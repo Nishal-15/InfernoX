@@ -75,6 +75,43 @@ class Settings(BaseSettings):
     LIVE_UPDATE_INTERVAL_SECONDS: int = 15
     DEMO_EVENT_ENABLED: bool = True
 
+    # Phase 9: SaaS, Multi-Tenancy, RBAC & Billing
+    JWT_SECRET_KEY: str = "inferno-x-production-saas-jwt-secret-key-2026-secure-token-hash"
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+    
+    # Razorpay Integration
+    RAZORPAY_KEY_ID: str = "rzp_test_placeholder"
+    RAZORPAY_KEY_SECRET: str = "rzp_secret_placeholder"
+    RAZORPAY_WEBHOOK_SECRET: str = "rzp_webhook_secret_placeholder"
+    
+    # Email Provider
+    EMAIL_PROVIDER: str = "console"
+    SMTP_HOST: str = "localhost"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = "noreply@infernox.ai"
+
+    # Plan Limits Defaults
+    MAX_FREE_USERS: int = 2
+    MAX_FREE_FACILITIES: int = 5
+    MAX_FREE_REPORTS_PER_MONTH: int = 5
+    MAX_FREE_REPORTS: int = 5
+    MAX_FREE_API_REQUESTS: int = 100
+    MAX_FREE_ALERT_RULES: int = 3
+
+    MAX_PRO_USERS: int = 15
+    MAX_PRO_FACILITIES: int = 50
+    MAX_PRO_REPORTS_PER_MONTH: int = 100
+    MAX_PRO_REPORTS: int = 200
+    MAX_PRO_API_REQUESTS: int = 10000
+    MAX_PRO_ALERT_RULES: int = 25
+
+    EMAILS_FROM_EMAIL: str = "noreply@infernox.ai"
+
     model_config = SettingsConfigDict(case_sensitive=True, env_file=".env", extra="ignore")
 
 settings = Settings()
+

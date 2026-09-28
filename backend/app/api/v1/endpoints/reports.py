@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, Depends, Query, HTTPException, Response
+from fastapi import APIRouter, Depends, Query, HTTPException, Response, Header
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -19,13 +19,14 @@ router = APIRouter()
 @router.post("/generate")
 def generate_report(
     request: ReportGenerateRequest,
+    x_organization_id: Optional[str] = Header(None, alias="X-Organization-Id"),
     db: Session = Depends(get_db)
 ):
     """
     Generate an intelligence report and return either JSON payload or binary file (PDF/CSV/GeoJSON).
     """
     try:
-        payload, rendered = ReportService.generate_report(db, request)
+        payload, rendered = ReportService.generate_report(db, request, organization_id=x_organization_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -108,9 +109,11 @@ def get_regional_report(
 def list_report_history(
     limit: int = Query(50, ge=1, le=100),
     report_type: Optional[str] = None,
+    x_organization_id: Optional[str] = Header(None, alias="X-Organization-Id"),
     db: Session = Depends(get_db)
 ):
     """
     List previously generated reports.
     """
-    return ReportService.list_reports(db, limit=limit, report_type=report_type)
+    return ReportService.list_reports(db, limit=limit, report_type=report_type, organization_id=x_organization_id)
+

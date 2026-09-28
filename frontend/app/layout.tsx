@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   description: "AI-Assisted Industrial Thermal Monitoring",
 };
 
+import { AuthProvider } from "@/lib/authContext";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -17,7 +19,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${inter.className} bg-slate-950 text-slate-50 antialiased h-screen overflow-hidden`}>
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

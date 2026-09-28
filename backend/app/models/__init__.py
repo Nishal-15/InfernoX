@@ -19,6 +19,17 @@ from app.models.pipeline import (
     FirmsIngestionState,
     AutonomousAuditLog
 )
+from app.models.saas import (
+    User,
+    Organization,
+    OrganizationMember,
+    OrganizationInvitation,
+    ApiKey,
+    WebhookEndpoint,
+    Subscription,
+    UsageRecord,
+    PlatformAuditLog
+)
 
 __all__ = [
     "ThermalEvent",
@@ -38,5 +49,15 @@ __all__ = [
     "PipelineJob",
     "PipelineStageRun",
     "FirmsIngestionState",
-    "AutonomousAuditLog"
+    "AutonomousAuditLog",
+    "User",
+    "Organization",
+    "OrganizationMember",
+    "OrganizationInvitation",
+    "ApiKey",
+    "WebhookEndpoint",
+    "Subscription",
+    "UsageRecord",
+    "PlatformAuditLog"
 ]
+

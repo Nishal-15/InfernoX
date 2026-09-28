@@ -28,6 +28,7 @@ class AlertRule(Base):
     __tablename__ = "alert_rules"
 
     id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(Integer, nullable=True, index=True)  # Scoped tenant rule or NULL for global default
     name = Column(String(128), unique=True, nullable=False, index=True)
     description = Column(String(256), nullable=True)
     enabled = Column(Boolean, default=True, nullable=False, index=True)
@@ -42,10 +43,12 @@ class Alert(Base):
     __tablename__ = "alerts"
 
     id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(Integer, nullable=True, index=True)  # Scoped tenant alert or NULL for global
     alert_code = Column(String(64), unique=True, nullable=False, index=True)  # e.g. ALT-2026-000001
     event_id = Column(Integer, ForeignKey("thermal_events.id", ondelete="CASCADE"), nullable=False, index=True)
     incident_id = Column(Integer, nullable=True, index=True) # Associated ThermalIncident id
     rule_id = Column(Integer, ForeignKey("alert_rules.id", ondelete="SET NULL"), nullable=True, index=True)
+
     severity = Column(String(32), nullable=False, index=True)  # CRITICAL, HIGH, MODERATE, LOW
     title = Column(String(256), nullable=False)
     message = Column(Text, nullable=False)

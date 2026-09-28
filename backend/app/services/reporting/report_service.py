@@ -13,7 +13,8 @@ class ReportService:
     def generate_report(
         db: Session,
         request: ReportGenerateRequest,
-        actor: str = "Analyst-01"
+        actor: str = "Analyst-01",
+        organization_id: Optional[str] = None
     ) -> Tuple[ReportDataPayload, Union[bytes, str, Dict[str, Any]]]:
         """
         Build and optionally render report into requested format (PDF, CSV, GEOJSON, JSON).
@@ -50,6 +51,7 @@ class ReportService:
             summary_json=payload.summary,
             provenance_json=payload.provenance.model_dump(mode="json"),
             format=request.format.upper(),
+            organization_id=organization_id,
             created_at=datetime.now(timezone.utc),
             created_by=actor
         )
@@ -74,14 +76,21 @@ class ReportService:
     def list_reports(
         db: Session,
         limit: int = 50,
-        report_type: Optional[str] = None
+        report_type: Optional[str] = None,
+        organization_id: Optional[str] = None
     ) -> List[ReportListItem]:
         """
         List previously generated and persisted reports.
+        Filters by organization_id if provided (allowing global reports with organization_id=None).
         """
         query = db.query(GeneratedReport)
         if report_type:
             query = query.filter(GeneratedReport.report_type == report_type.upper())
+        if organization_id:
+            query = query.filter(
+                (GeneratedReport.organization_id == organization_id) |
+                (GeneratedReport.organization_id == None)
+            )
         records = query.order_by(GeneratedReport.created_at.desc()).limit(limit).all()
 
         return [

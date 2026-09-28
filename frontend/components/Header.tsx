@@ -2,6 +2,14 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { globalSearch } from '@/lib/api';
+import { useAuth } from '@/lib/authContext';
+import { TenantSwitcher } from './TenantSwitcher';
+import { AuthModal } from './AuthModal';
+import { OrganizationSettingsModal } from './OrganizationSettingsModal';
+import { BillingModal } from './BillingModal';
+import { AdminHqModal } from './AdminHqModal';
+import { LogIn, LogOut, Settings, CreditCard, ShieldCheck, ChevronDown } from 'lucide-react';
+
 
 interface SearchResultFacility {
   id: number;
@@ -63,6 +71,15 @@ export const Header: React.FC<HeaderProps> = ({
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
+  // Phase 9 SaaS Auth State
+  const { user, isAuthenticated, role, isSuperAdmin, logout } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+  const [showOrgModal, setShowOrgModal] = useState<boolean>(false);
+  const [showBillingModal, setShowBillingModal] = useState<boolean>(false);
+  const [showAdminModal, setShowAdminModal] = useState<boolean>(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState<boolean>(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
   // UTC clock & seconds ago counter
   useEffect(() => {
     const updateClock = () => {
@@ -112,6 +129,9 @@ export const Header: React.FC<HeaderProps> = ({
       if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
         setIsDropdownOpen(false);
       }
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserDropdownOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -134,6 +154,9 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
           </div>
         </div>
+
+        {/* Phase 9 SaaS Multi-Tenant Switcher */}
+        <TenantSwitcher onOpenOrgSettings={() => setShowOrgModal(true)} />
 
         {/* Live Indicator Pill */}
         <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-900/90 border border-slate-800 text-[10px] font-mono">
@@ -322,17 +345,94 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </div>
 
-        {/* User Pill */}
-        <div className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-slate-900 border border-slate-800">
-          <div className="w-5 h-5 rounded-full bg-cyan-600/30 border border-cyan-500/50 flex items-center justify-center text-[10px] text-cyan-300 font-mono">
-            A1
+        {/* User Pill & SaaS Auth Menu */}
+        {isAuthenticated && user ? (
+          <div ref={userMenuRef} className="relative">
+            <button
+              onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+              className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 transition-colors cursor-pointer"
+            >
+              <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-amber-500 to-rose-600 text-slate-950 font-bold text-[10px] flex items-center justify-center shadow-sm">
+                {user.full_name?.charAt(0).toUpperCase() || 'U'}
+              </div>
+              <div className="hidden sm:block text-left">
+                <div className="text-[11px] font-semibold text-slate-200 leading-none truncate max-w-[100px]">
+                  {user.full_name?.split(' ')[0] || user.email}
+                </div>
+                <div className="text-[9px] text-amber-400 font-mono leading-none mt-0.5 uppercase">
+                  {role?.replace('_', ' ') || 'ANALYST'}
+                </div>
+              </div>
+              <ChevronDown size={13} className="text-slate-400" />
+            </button>
+
+            {userDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-56 rounded-xl bg-slate-900 border border-slate-800 shadow-2xl z-50 overflow-hidden backdrop-blur-md divide-y divide-slate-800/80">
+                <div className="px-3.5 py-2.5 bg-slate-950/40">
+                  <p className="text-xs font-semibold text-white truncate">{user.full_name}</p>
+                  <p className="text-[11px] text-slate-400 font-mono truncate">{user.email}</p>
+                </div>
+
+                <div className="p-1 text-xs">
+                  <button
+                    onClick={() => { setUserDropdownOpen(false); setShowOrgModal(true); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors text-left cursor-pointer"
+                  >
+                    <Settings size={14} className="text-amber-400" />
+                    <span>Workspace Settings</span>
+                  </button>
+
+                  <button
+                    onClick={() => { setUserDropdownOpen(false); setShowBillingModal(true); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors text-left cursor-pointer"
+                  >
+                    <CreditCard size={14} className="text-emerald-400" />
+                    <span>Billing & Resource Limits</span>
+                  </button>
+
+                  {isSuperAdmin && (
+                    <button
+                      onClick={() => { setUserDropdownOpen(false); setShowAdminModal(true); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-purple-300 hover:text-purple-200 hover:bg-purple-950/30 transition-colors text-left font-medium cursor-pointer"
+                    >
+                      <ShieldCheck size={14} className="text-purple-400" />
+                      <span>Platform Admin HQ</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="p-1 text-xs">
+                  <button
+                    onClick={() => { setUserDropdownOpen(false); logout(); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-950/20 transition-colors text-left cursor-pointer"
+                  >
+                    <LogOut size={14} />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-          <div className="hidden sm:block text-left font-mono">
-            <div className="text-[11px] font-semibold text-slate-200 leading-none">Analyst-01</div>
-            <div className="text-[9px] text-slate-500 leading-none mt-0.5">OPS CENTER</div>
-          </div>
-        </div>
+        ) : (
+          <button
+            onClick={() => setShowAuthModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md shadow-amber-500/20 transition-all cursor-pointer"
+          >
+            <LogIn size={14} />
+            <span>Sign In</span>
+          </button>
+        )}
       </div>
+
+      {/* Phase 9 SaaS Modals */}
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+      <OrganizationSettingsModal
+        isOpen={showOrgModal}
+        onClose={() => setShowOrgModal(false)}
+        onOpenBilling={() => setShowBillingModal(true)}
+      />
+      <BillingModal isOpen={showBillingModal} onClose={() => setShowBillingModal(false)} />
+      <AdminHqModal isOpen={showAdminModal} onClose={() => setShowAdminModal(false)} />
     </header>
   );
 };
