@@ -82,8 +82,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
+    version=settings.VERSION,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
-    description="AI-Based Industrial Fire & Persistent Thermal Source Intelligence API",
+    description="InfernoX: AI-Based Industrial Fire & Persistent Thermal Source Intelligence Platform",
     lifespan=lifespan
 )
 

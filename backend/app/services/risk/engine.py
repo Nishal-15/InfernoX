@@ -248,6 +248,10 @@ class RiskEngine:
         return "LOW"
 
     @classmethod
+    def get_tier(cls, score: float) -> str:
+        return cls._determine_risk_level(score)
+
+    @classmethod
     def record_risk_assessment(
         cls,
         db: Session,

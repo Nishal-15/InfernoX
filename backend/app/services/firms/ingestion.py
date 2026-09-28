@@ -72,7 +72,7 @@ class FirmsIngestionService:
         try:
             csv_data = ""
             if not self.client.api_key:
-                if settings.DEMO_MODE or use_demo_if_missing_key:
+                if use_demo_if_missing_key:
                     logger.info("FIRMS_MAP_KEY is empty. Using designated DEMO/TEST data provider.")
                     csv_data = DEMO_FIRMS_CSV
                     job.source = "DEMO_NASA_FIRMS"

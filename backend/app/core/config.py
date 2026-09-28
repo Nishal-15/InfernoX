@@ -4,7 +4,8 @@ from pydantic import AnyHttpUrl, field_validator, model_validator
 
 class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
-    PROJECT_NAME: str = "Thermal Intelligence"
+    PROJECT_NAME: str = "InfernoX"
+    VERSION: str = "v1.0.0-RC1"
     
     # BACKEND_CORS_ORIGINS is a JSON-formatted list of origins
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = ["http://localhost:3000"]
