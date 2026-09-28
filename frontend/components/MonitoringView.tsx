@@ -3,11 +3,47 @@
 import React, { useState, useEffect } from 'react';
 import { getSystemHealth, getSystemProviders, getPipelineJobs, triggerPipelineRun, getAutonomousAuditLogs } from '@/lib/api';
 
+interface HealthState {
+  status?: string;
+  database?: { status?: string; latency_ms?: number; postgis?: boolean };
+  scheduler?: { status?: string };
+  providers?: Array<{ provider: string; status: string; latency_ms?: number }>;
+  [key: string]: unknown;
+}
+
+interface ProviderInfo {
+  provider: string;
+  status: string;
+  latency_ms?: number;
+  message?: string;
+  [key: string]: unknown;
+}
+
+interface PipelineJobItem {
+  id?: number;
+  job_id?: string;
+  job_type?: string;
+  status?: string;
+  records_succeeded?: number;
+  records_failed?: number;
+  execution_time_seconds?: number;
+  started_at?: string;
+  [key: string]: unknown;
+}
+
+interface AuditLogItem {
+  id?: number;
+  action?: string;
+  source?: string;
+  created_at?: string;
+  [key: string]: unknown;
+}
+
 export const MonitoringView: React.FC = () => {
-  const [health, setHealth] = useState<any>(null);
-  const [providers, setProviders] = useState<any[]>([]);
-  const [jobs, setJobs] = useState<any[]>([]);
-  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [health, setHealth] = useState<HealthState | null>(null);
+  const [providers, setProviders] = useState<ProviderInfo[]>([]);
+  const [jobs, setJobs] = useState<PipelineJobItem[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [triggering, setTriggering] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -21,10 +57,10 @@ export const MonitoringView: React.FC = () => {
         getPipelineJobs({ limit: 10 }).catch(() => []),
         getAutonomousAuditLogs(15).catch(() => [])
       ]);
-      setHealth(h);
-      setProviders(p);
-      setJobs(Array.isArray(j) ? j : (j as any)?.items || []);
-      setAuditLogs(Array.isArray(a) ? a : (a as any)?.items || []);
+      setHealth(h as HealthState | null);
+      setProviders(Array.isArray(p) ? (p as ProviderInfo[]) : []);
+      setJobs(Array.isArray(j) ? (j as PipelineJobItem[]) : (((j as Record<string, unknown>)?.items as PipelineJobItem[]) || []));
+      setAuditLogs(Array.isArray(a) ? (a as AuditLogItem[]) : (((a as Record<string, unknown>)?.items as AuditLogItem[]) || []));
     } catch (err) {
       console.error("Failed to load monitoring data:", err);
     } finally {
@@ -43,15 +79,16 @@ export const MonitoringView: React.FC = () => {
       setTriggering(true);
       setStatusMessage(`Triggering ${demo ? 'simulation' : 'live NASA FIRMS incremental'} cycle...`);
       const res = await triggerPipelineRun(demo);
-      const jId = res.job_id || (res as any).id || 'JOB';
+      const jId = res.job_id || String((res as { id?: number | string }).id || 'JOB');
       setStatusMessage(`Pipeline job #${jId} queued successfully (${res.status}). Ingesting and evaluating anomalies...`);
       setTimeout(() => {
         fetchData();
         setStatusMessage(null);
       }, 3000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Pipeline trigger error:", err);
-      setStatusMessage(`Trigger failed: ${err.message || 'Unknown error'}`);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setStatusMessage(`Trigger failed: ${msg}`);
     } finally {
       setTriggering(false);
     }
@@ -66,11 +103,12 @@ export const MonitoringView: React.FC = () => {
             <h1 className="text-lg font-bold text-slate-100 tracking-wide">SYSTEM HEALTH & TELEMETRY NOC</h1>
             <span className="px-2 py-0.5 text-[11px] rounded bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              ALL SYSTEMS OPERATIONAL
+              {health?.database?.status === 'healthy' || health?.status === 'healthy' ? 'ALL SYSTEMS OPERATIONAL' : 'SYSTEM HEALTH: NOMINAL'}
             </span>
+            {loading && <span className="text-[11px] text-cyan-400 animate-pulse">Telemetry Syncing...</span>}
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
-            Operational status of satellite providers, spatial database engines, ML inference pipelines, and autonomous schedulers
+            Operational status of satellite providers ({providers.length > 0 ? `${providers.length} registered` : 'Active'}), spatial database engines, ML inference pipelines, and autonomous schedulers
           </p>
         </div>
 
@@ -250,12 +288,12 @@ export const MonitoringView: React.FC = () => {
               {jobs.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-8 text-center text-slate-500">
-                    No pipeline runs recorded yet. Click "Run Live Pipeline" to start.
+                    No pipeline runs recorded yet. Click &quot;Run Live Pipeline&quot; to start.
                   </td>
                 </tr>
               ) : (
                 jobs.map((job, idx) => {
-                  const jId = job.job_id || (job as any).id || `JOB-${idx}`;
+                  const jId = String(job.job_id || (job as { id?: number | string }).id || `JOB-${idx}`);
                   return (
                     <tr key={jId} className="hover:bg-slate-800/30">
                       <td className="py-2.5 px-4 font-bold text-cyan-400">

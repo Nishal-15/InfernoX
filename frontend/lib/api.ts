@@ -834,7 +834,7 @@ export interface ThermalIncidentResponse {
   primary_facility_id?: number;
   primary_facility_name?: string;
   distance_to_facility_meters?: number;
-  incident_summary_json?: Record<string, any>;
+  incident_summary_json?: Record<string, unknown>;
   summary?: string;
   analyst_notes?: string;
   created_at: string;
@@ -906,10 +906,31 @@ export const getIncidents = async (params: {
   return response.data;
 };
 
+export interface CorrelatedEventItem {
+  id: number;
+  event_code?: string;
+  detected_at?: string;
+  frp?: number;
+  satellite?: string;
+  latitude?: number;
+  longitude?: number;
+  status?: string;
+  confidence?: number;
+}
+
+export interface CorrelatedAlertItem {
+  id: number;
+  alert_code?: string;
+  severity?: string;
+  title?: string;
+  status?: string;
+  created_at?: string;
+}
+
 export const getIncidentDetail = async (id: number): Promise<{
   incident: ThermalIncidentResponse;
-  events: any[];
-  alerts: any[];
+  events: CorrelatedEventItem[];
+  alerts: CorrelatedAlertItem[];
 }> => {
   const response = await apiClient.get(`/incidents/${id}`);
   return response.data;

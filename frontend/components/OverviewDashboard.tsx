@@ -16,19 +16,56 @@ import {
   Activity, 
   Radio, 
   ShieldAlert, 
-  TrendingUp, 
   RefreshCw, 
   Compass, 
   ArrowUpRight, 
   CheckCircle2,
   Clock,
-  Layers,
   Sparkles
 } from 'lucide-react';
+import { NavTab } from '@/components/SidebarNav';
+
+interface EventItem {
+  id: number;
+  classification?: string;
+  frp?: number;
+  confidence?: number;
+  satellite?: string;
+  latitude?: number;
+  longitude?: number;
+  created_at?: string;
+}
+
+interface IncidentItem {
+  id: number;
+  title?: string;
+  severity?: string;
+  status?: string;
+  event_count?: number;
+  affected_facility?: string;
+}
+
+interface AlertItem {
+  id: number;
+  severity?: string;
+  title?: string;
+  message?: string;
+  created_at?: string;
+  alert_code?: string;
+  alert_type?: string;
+}
+
+interface AnalyticsSummaryData {
+  total_events?: number;
+  classification_breakdown?: Record<string, number>;
+  risk_level_breakdown?: Record<string, number>;
+  active_alerts?: number;
+  monitored_facilities?: number;
+}
 
 interface OverviewDashboardProps {
   onNavigateToEvent: (eventId: number) => void;
-  onNavigateToTab: (tab: any) => void;
+  onNavigateToTab: (tab: NavTab) => void;
   onSelectFacility: (facId: number) => void;
 }
 
@@ -39,10 +76,10 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
 }) => {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const [summary, setSummary] = useState<any>(null);
-  const [recentEvents, setRecentEvents] = useState<any[]>([]);
-  const [incidents, setIncidents] = useState<any[]>([]);
-  const [alerts, setAlerts] = useState<any[]>([]);
+  const [summary, setSummary] = useState<AnalyticsSummaryData | null>(null);
+  const [recentEvents, setRecentEvents] = useState<EventItem[]>([]);
+  const [incidents, setIncidents] = useState<IncidentItem[]>([]);
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [facilitiesCount, setFacilitiesCount] = useState<number>(12);
 
   const loadData = async () => {
@@ -56,11 +93,11 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
         getFacilitiesGeoJson().catch(() => ({ features: [] }))
       ]);
 
-      if (sumRes) setSummary(sumRes);
-      setRecentEvents(evRes?.items || []);
-      setIncidents(Array.isArray(incRes) ? incRes : ((incRes as any)?.items || []));
-      setAlerts(altRes?.items || (Array.isArray(altRes) ? altRes : []));
-      setFacilitiesCount(facRes?.features?.length || 12);
+      if (sumRes) setSummary(sumRes as AnalyticsSummaryData);
+      setRecentEvents(((evRes as { items?: EventItem[] })?.items || []) as EventItem[]);
+      setIncidents(Array.isArray(incRes) ? (incRes as IncidentItem[]) : (((incRes as unknown as { items?: IncidentItem[] })?.items || []) as IncidentItem[]));
+      setAlerts(((altRes as { items?: AlertItem[] })?.items || (Array.isArray(altRes) ? altRes : [])) as AlertItem[]);
+      setFacilitiesCount((facRes as { features?: unknown[] })?.features?.length || 12);
     } catch (err) {
       console.error("Failed to load overview dashboard data:", err);
     } finally {
@@ -106,6 +143,11 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             <span className="text-[10px] px-2 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800">
               NATIONAL MONITORING
             </span>
+            {loading && (
+              <span className="text-[10px] text-cyan-400 animate-pulse font-mono ml-2">
+                Syncing Telemetry...
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-400 mt-1 font-sans">
             AI-based detection and segregation of industrial thermal signatures, flaring assets, and natural fires across critical infrastructure corridors.
@@ -304,18 +346,36 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mt-3 text-xs">
-              <div className="p-3 rounded-lg bg-slate-950/70 border border-slate-800">
-                <div className="text-[10px] text-slate-500 uppercase">Gujarat Refining Corridor</div>
+              <div 
+                onClick={() => onSelectFacility(1)}
+                className="p-3 rounded-lg bg-slate-950/70 border border-slate-800 hover:border-cyan-800/80 cursor-pointer transition-colors group"
+              >
+                <div className="text-[10px] text-slate-500 uppercase flex items-center justify-between">
+                  <span>Gujarat Refining Corridor</span>
+                  <span className="text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity">Fly →</span>
+                </div>
                 <div className="font-bold text-slate-200 mt-1">Jamnagar Petrochemicals</div>
                 <div className="text-[10px] text-amber-400 mt-0.5">Reliance & Nayara Vadinar</div>
               </div>
-              <div className="p-3 rounded-lg bg-slate-950/70 border border-slate-800">
-                <div className="text-[10px] text-slate-500 uppercase">Odisha Industrial Belt</div>
+              <div 
+                onClick={() => onSelectFacility(4)}
+                className="p-3 rounded-lg bg-slate-950/70 border border-slate-800 hover:border-cyan-800/80 cursor-pointer transition-colors group"
+              >
+                <div className="text-[10px] text-slate-500 uppercase flex items-center justify-between">
+                  <span>Odisha Industrial Belt</span>
+                  <span className="text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity">Fly →</span>
+                </div>
                 <div className="font-bold text-slate-200 mt-1">Paradip & Kalinganagar</div>
                 <div className="text-[10px] text-sky-400 mt-0.5">IOCL Refinery & Tata Steel</div>
               </div>
-              <div className="p-3 rounded-lg bg-slate-950/70 border border-slate-800">
-                <div className="text-[10px] text-slate-500 uppercase">Mineral & Power Hub</div>
+              <div 
+                onClick={() => onSelectFacility(7)}
+                className="p-3 rounded-lg bg-slate-950/70 border border-slate-800 hover:border-cyan-800/80 cursor-pointer transition-colors group"
+              >
+                <div className="text-[10px] text-slate-500 uppercase flex items-center justify-between">
+                  <span>Mineral & Power Hub</span>
+                  <span className="text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity">Fly →</span>
+                </div>
                 <div className="font-bold text-slate-200 mt-1">Korba & Bokaro Complex</div>
                 <div className="text-[10px] text-purple-400 mt-0.5">NTPC Thermal & SAIL Steel</div>
               </div>

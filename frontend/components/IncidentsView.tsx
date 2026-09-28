@@ -1,7 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { getIncidents, updateIncidentStatus, getIncidentDetail, ThermalIncidentResponse } from '@/lib/api';
+import { 
+  getIncidents, 
+  updateIncidentStatus, 
+  getIncidentDetail, 
+  ThermalIncidentResponse,
+  CorrelatedEventItem,
+  CorrelatedAlertItem 
+} from '@/lib/api';
 
 interface IncidentsViewProps {
   onFlyToIncident?: (lon: number, lat: number) => void;
@@ -23,8 +30,8 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
   const [selectedIncidentId, setSelectedIncidentId] = useState<number | null>(null);
   const [incidentDetail, setIncidentDetail] = useState<{
     incident: ThermalIncidentResponse;
-    events: any[];
-    alerts: any[];
+    events: CorrelatedEventItem[];
+    alerts: CorrelatedAlertItem[];
   } | null>(null);
   const [loadingDetail, setLoadingDetail] = useState<boolean>(false);
   const [analystNote, setAnalystNote] = useState<string>('');
@@ -36,8 +43,8 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
       const res = await getIncidents();
       const items = res?.items || (Array.isArray(res) ? res : []);
       setIncidents(items);
-      setActiveCount(res?.active_count ?? items.filter((i: any) => i.status === 'ACTIVE' || i.status === 'MONITORING').length);
-      setCriticalCount(res?.critical_count ?? items.filter((i: any) => i.severity === 'CRITICAL').length);
+      setActiveCount(res?.active_count ?? items.filter((i: ThermalIncidentResponse) => i.status === 'ACTIVE' || i.status === 'MONITORING').length);
+      setCriticalCount(res?.critical_count ?? items.filter((i: ThermalIncidentResponse) => i.severity === 'CRITICAL').length);
     } catch (err) {
       console.error("Failed to load incidents:", err);
     } finally {
@@ -66,7 +73,7 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
     try {
       setIsUpdatingStatus(true);
       const updated = await updateIncidentStatus(incidentId, newStatus, analystNote || undefined);
-      setIncidents(prev => prev.map(inc => inc.id === incidentId ? { ...inc, status: updated.status } : inc));
+      setIncidents((prev: ThermalIncidentResponse[]) => prev.map((inc: ThermalIncidentResponse) => inc.id === incidentId ? { ...inc, status: updated.status } : inc));
       if (incidentDetail && incidentDetail.incident.id === incidentId) {
         setIncidentDetail(prev => prev ? {
           ...prev,
@@ -81,7 +88,7 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
     }
   };
 
-  const filteredIncidents = incidents.filter(inc => {
+  const filteredIncidents = incidents.filter((inc: ThermalIncidentResponse) => {
     const matchesStatus = statusFilter === 'ALL' || inc.status === statusFilter;
     const matchesSeverity = severityFilter === 'ALL' || inc.severity === severityFilter;
     return matchesStatus && matchesSeverity;
@@ -215,7 +222,7 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
-                  {filteredIncidents.map((inc) => {
+                  {filteredIncidents.map((inc: ThermalIncidentResponse) => {
                     const lat = inc.centroid_latitude ?? inc.centroid_lat ?? 0;
                     const lon = inc.centroid_longitude ?? inc.centroid_lon ?? 0;
                     const isSelected = selectedIncidentId === inc.id;
@@ -368,7 +375,7 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
                     Correlated Detections ({incidentDetail.events.length})
                   </h4>
                   <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                    {incidentDetail.events.map((ev) => (
+                    {incidentDetail.events.map((ev: CorrelatedEventItem) => (
                       <div
                         key={ev.id}
                         onClick={() => onInspectEvent && onInspectEvent(ev.id)}

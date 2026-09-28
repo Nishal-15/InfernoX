@@ -24,7 +24,21 @@ interface MapToolbarProps {
   hasSelectedEvent?: boolean;
   followEvent?: boolean;
   onToggleFollowEvent?: (follow: boolean) => void;
+  onFlyToPreset?: (lon: number, lat: number, height: number) => void;
 }
+
+const REGION_PRESETS = [
+  { name: 'India (National Overview)', lon: 78.9629, lat: 20.5937, height: 3500000 },
+  { name: 'Gujarat Petrochemical (Jamnagar)', lon: 70.0712, lat: 22.4632, height: 45000 },
+  { name: 'Mumbai Industrial Corridor (BPCL)', lon: 72.8540, lat: 19.0125, height: 35000 },
+  { name: 'Korba Super Thermal Power Hub', lon: 82.6844, lat: 22.3595, height: 40000 },
+  { name: 'IOCL Paradip Refinery & Port', lon: 86.6085, lat: 20.2644, height: 45000 },
+  { name: 'Tata Steel Kalinganagar Complex', lon: 85.9622, lat: 20.9521, height: 35000 },
+  { name: 'Jharia Coalfield Mining Complex', lon: 86.4167, lat: 23.7441, height: 35000 },
+  { name: 'Ramagundam STPS (Telangana)', lon: 79.4312, lat: 18.7562, height: 40000 },
+  { name: 'Hazira LNG & Petrochemicals', lon: 72.6481, lat: 21.1125, height: 40000 },
+  { name: 'HPCL Visakhapatnam Refinery', lon: 83.2185, lat: 17.6868, height: 38000 }
+];
 
 export const MapToolbar: React.FC<MapToolbarProps> = ({
   layers,
@@ -35,9 +49,11 @@ export const MapToolbar: React.FC<MapToolbarProps> = ({
   onInvestigateCurrent,
   hasSelectedEvent = false,
   followEvent = false,
-  onToggleFollowEvent
+  onToggleFollowEvent,
+  onFlyToPreset
 }) => {
   const [layersMenuOpen, setLayersMenuOpen] = useState(false);
+  const [presetsMenuOpen, setPresetsMenuOpen] = useState(false);
 
   return (
     <div className="absolute top-4 left-4 z-20 flex items-center gap-2 font-mono select-none">
@@ -78,6 +94,49 @@ export const MapToolbar: React.FC<MapToolbarProps> = ({
         </svg>
         <span>Reset View</span>
       </button>
+
+      {/* Region Presets Dropdown (Section 32) */}
+      <div className="relative">
+        <button
+          onClick={() => { setPresetsMenuOpen(!presetsMenuOpen); setLayersMenuOpen(false); }}
+          className={`backdrop-blur-md px-2.5 py-1.5 rounded-lg border text-xs shadow-xl transition-all flex items-center gap-1.5 ${
+            presetsMenuOpen
+              ? 'bg-slate-800 text-cyan-300 border-cyan-500/50'
+              : 'bg-slate-950/85 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700'
+          }`}
+          title="Fly to Major Industrial Corridors & Regions"
+        >
+          <span>📍 Regions</span>
+          <svg className={`w-3 h-3 text-slate-400 transition-transform ${presetsMenuOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {presetsMenuOpen && (
+          <div className="absolute top-10 left-0 w-64 bg-slate-950/95 border border-slate-800 rounded-xl shadow-2xl p-2 z-30 backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-150">
+            <div className="px-2 py-1 text-[10px] text-slate-500 font-bold uppercase tracking-wider border-b border-slate-800/80 mb-1">
+              STRATEGIC INDUSTRIAL REGIONS
+            </div>
+            <div className="space-y-0.5 max-h-64 overflow-y-auto">
+              {REGION_PRESETS.map((preset, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    if (onFlyToPreset) {
+                      onFlyToPreset(preset.lon, preset.lat, preset.height);
+                    }
+                    setPresetsMenuOpen(false);
+                  }}
+                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] text-slate-300 hover:text-cyan-300 hover:bg-slate-900/90 transition flex items-center justify-between"
+                >
+                  <span className="truncate">{preset.name}</span>
+                  <span className="text-[9px] text-slate-500">FLY</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Investigate Current Event */}
       {hasSelectedEvent && onInvestigateCurrent && (

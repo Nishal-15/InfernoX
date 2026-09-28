@@ -1,7 +1,22 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getEventsList } from '@/lib/api';
+
+export interface ThermalEventTableRow {
+  id: number;
+  latitude?: number;
+  longitude?: number;
+  frp?: number;
+  confidence?: number;
+  detected_at?: string;
+  satellite?: string;
+  status?: string;
+  classification?: string;
+  class?: string;
+  notes?: string;
+  [key: string]: unknown;
+}
 
 interface LiveEventsViewProps {
   onSelectEvent: (eventId: number, flyTo?: boolean) => void;
@@ -14,7 +29,7 @@ export const LiveEventsView: React.FC<LiveEventsViewProps> = ({
   onFlyTo,
   onOpenReport
 }) => {
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<ThermalEventTableRow[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -24,7 +39,7 @@ export const LiveEventsView: React.FC<LiveEventsViewProps> = ({
   const [page, setPage] = useState<number>(1);
   const pageSize = 20;
 
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     try {
       setLoading(true);
       const res = await getEventsList({
@@ -39,11 +54,11 @@ export const LiveEventsView: React.FC<LiveEventsViewProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, pageSize]);
 
   useEffect(() => {
     fetchEvents();
-  }, [page]);
+  }, [fetchEvents]);
 
   const filteredEvents = useMemo(() => {
     return events.filter(e => {
@@ -354,7 +369,7 @@ export const LiveEventsView: React.FC<LiveEventsViewProps> = ({
                           </button>
                           {ev.latitude !== undefined && ev.longitude !== undefined && onFlyTo && (
                             <button
-                              onClick={() => onFlyTo(ev.longitude, ev.latitude)}
+                              onClick={() => onFlyTo(ev.longitude!, ev.latitude!)}
                               className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] transition"
                               title="Fly to coordinate on globe"
                             >
@@ -377,6 +392,27 @@ export const LiveEventsView: React.FC<LiveEventsViewProps> = ({
                 })}
               </tbody>
             </table>
+
+            {/* Pagination Controls */}
+            <div className="p-3 bg-slate-950/80 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+              <span>Showing Page {page} of {Math.max(1, Math.ceil(totalCount / pageSize))}</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage(prev => Math.max(1, prev - 1))}
+                  disabled={page <= 1}
+                  className="px-2.5 py-1 rounded bg-slate-900 border border-slate-700 text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-800 transition"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setPage(prev => prev + 1)}
+                  disabled={page * pageSize >= totalCount}
+                  className="px-2.5 py-1 rounded bg-slate-900 border border-slate-700 text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-800 transition"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

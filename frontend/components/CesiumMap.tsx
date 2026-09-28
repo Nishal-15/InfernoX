@@ -383,7 +383,7 @@ const CesiumMap = forwardRef<CesiumMapRef, CesiumMapProps>(({
         let pointColor = Cesium.Color.fromCssColorString('#94a3b8'); // Neutral slate
         let pixelSize = effectiveSeverity === 'CRITICAL' ? 16 : effectiveSeverity === 'HIGH' ? 12 : effectiveSeverity === 'MODERATE' ? 10 : 8;
         let outlineWidth = effectiveSeverity === 'CRITICAL' ? 3.5 : effectiveSeverity === 'HIGH' ? 2.5 : effectiveSeverity === 'MODERATE' ? 2.0 : 1.5;
-        let outlineColor = effectiveSeverity === 'CRITICAL' ? Cesium.Color.fromCssColorString('#fecaca') : Cesium.Color.WHITE;
+        const outlineColor = effectiveSeverity === 'CRITICAL' ? Cesium.Color.fromCssColorString('#fecaca') : Cesium.Color.WHITE;
         let labelIcon = '🔥';
         let labelPrefix = 'ANOMALY';
 
