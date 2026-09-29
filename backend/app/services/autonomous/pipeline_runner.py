@@ -28,8 +28,13 @@ from app.services.alert.engine import AlertEngine
 from app.services.autonomous.incident_correlator import IncidentCorrelator
 from app.services.autonomous.retry_policy import RetryPolicy
 from app.services.websocket.manager import ws_manager
+from app.services.intelligence.propagation import SpatialPropagationModel
+from app.services.intelligence.industrial_discriminator import IndustrialFireDiscriminator
+from app.services.intelligence.evidence_fusion import MultimodalEvidenceFusionService
+from app.services.firms.fusion import FirmsObservationFusionService
 
 logger = logging.getLogger(__name__)
+
 
 class PipelineRunner:
     """
@@ -192,14 +197,35 @@ class PipelineRunner:
                 matched_facs.sort(key=lambda x: x["distance_meters"])
 
             nearest = matched_facs[0] if matched_facs else None
+            
+            # Compute exponential proximity decay score: e^(-d / 1000)
+            decay_score = 0.0
+            hazard_cat = "NONE"
+            if nearest and nearest.get("distance_meters") is not None:
+                d_m = float(nearest["distance_meters"])
+                decay_score = round(math.exp(-d_m / 1000.0), 3)
+                ft = str(nearest.get("facility_type", "")).lower()
+                if any(k in ft for k in ["refinery", "lng", "gas"]):
+                    hazard_cat = "CRITICAL_REFINERY_LNG"
+                elif any(k in ft for k in ["petrochemical", "chemical", "storage", "depot"]):
+                    hazard_cat = "HIGH_CHEMICAL_PETROCHEM"
+                elif any(k in ft for k in ["power", "steel", "metal", "mining", "mine", "quarry"]):
+                    hazard_cat = "MEDIUM_HEAVY_INDUSTRY"
+                else:
+                    hazard_cat = "GENERAL_INDUSTRIAL"
+
             spatial_context = {
                 "nearest_facility": nearest,
                 "distance_meters": nearest["distance_meters"] if nearest else None,
                 "facility_count": len(matched_facs),
-                "facilities": matched_facs
+                "facilities": matched_facs,
+                "proximity_decay_score": decay_score,
+                "facility_hazard_category": hazard_cat,
+                "is_critical_proximity": bool(nearest and float(nearest.get("distance_meters", 9999.0)) <= 500.0)
             }
             cls._record_stage_success(db, stage_spatial, time.perf_counter() - t0, spatial_context)
             stages_executed.append("SPATIAL_ENRICHMENT")
+
         except Exception as e:
             cls._record_stage_failure(db, stage_spatial, time.perf_counter() - t0, e)
             logger.error(f"Stage SPATIAL_ENRICHMENT failed for event {event_id}: {e}")
@@ -257,6 +283,29 @@ class PipelineRunner:
                         })
 
             temporal_res = temporal_analyzer.compute_metrics(ev_dict, cluster_recs)
+            propagation_data = SpatialPropagationModel.analyze_propagation(
+                current_event=ev_dict,
+                cluster_records=cluster_recs,
+                duration_hours=temporal_res.get("metrics", {}).get("duration_hours", 0.0)
+            )
+
+            # Multi-Sensor Observation Fusion
+            fusion_data = {}
+            try:
+                fusion_service = FirmsObservationFusionService(spatial_radius_meters=1200.0, temporal_window_hours=6.0)
+                all_fusion_candidates = [ev_dict] + cluster_recs
+                fused_groups = fusion_service.fuse_observations(all_fusion_candidates)
+                for grp in fused_groups:
+                    raw_ids = [r.get("id") for r in grp.get("raw_observations", []) if r.get("id") is not None]
+                    if event.id in raw_ids or len(fused_groups) == 1:
+                        fusion_data = grp
+                        break
+                if not fusion_data and fused_groups:
+                    fusion_data = fused_groups[0]
+            except Exception as fe:
+                logger.warning(f"Multi-sensor fusion calculation failed gracefully: {fe}")
+                fusion_data = {}
+
             temporal_data = {
                 "status": temporal_res.get("temporal_status", "NEW"),
                 "active_days": temporal_res.get("metrics", {}).get("active_days", 1),
@@ -264,10 +313,13 @@ class PipelineRunner:
                 "mean_frp": temporal_res.get("metrics", {}).get("mean_frp", event.frp),
                 "max_frp": temporal_res.get("metrics", {}).get("max_frp", event.frp),
                 "event_count": temporal_res.get("metrics", {}).get("event_count", 1),
-                "metrics": temporal_res.get("metrics", {})
+                "metrics": temporal_res.get("metrics", {}),
+                "propagation": propagation_data,
+                "fusion": fusion_data
             }
             cls._record_stage_success(db, stage_temporal, time.perf_counter() - t0, temporal_data)
             stages_executed.append("TEMPORAL_ANALYSIS")
+
         except Exception as e:
             cls._record_stage_failure(db, stage_temporal, time.perf_counter() - t0, e)
             logger.error(f"Stage TEMPORAL_ANALYSIS failed for event {event_id}: {e}")
@@ -381,15 +433,56 @@ class PipelineRunner:
         risk_result = {}
         try:
             pred_class = classification_result.get("classification", "UNKNOWN")
+            
+            # Section 3, 5, 6, 8: Industrial vs. Natural Fire Discrimination
+            discrimination_data = IndustrialFireDiscriminator.evaluate(
+                event=ev_dict,
+                spatial_context=spatial_context,
+                temporal_data=temporal_data,
+                satellite_data=satellite_data,
+                propagation_data=temporal_data.get("propagation"),
+                fusion_data=temporal_data.get("fusion", {})
+            )
+
+            # Section 11: Multimodal Evidence Fusion
+            evidence_fusion = MultimodalEvidenceFusionService.fuse_evidence(
+                event=ev_dict,
+                spatial_context=spatial_context,
+                temporal_data=temporal_data,
+                satellite_data=satellite_data,
+                propagation_data=temporal_data.get("propagation"),
+                fusion_data=temporal_data.get("fusion", {}),
+                ml_prediction=classification_result,
+                discrimination_data=discrimination_data
+            )
+
+            # Update EventAssessment evidence factors with deep scientific context
+            if assessment:
+                new_factors = list(classification_result.get("evidence_factors", []))
+                new_factors.append(f"Industrial context: {discrimination_data['interpretation']} ({discrimination_data['expected_thermal_context']})")
+                prop = temporal_data.get("propagation", {})
+                if prop.get("propagation_state") and prop["propagation_state"] != "INSUFFICIENT_DATA":
+                    new_factors.append(f"Spatial propagation: {prop['propagation_state']} (spread radius {prop['spread_radius_meters']}m)")
+                assessment.evidence_factors = new_factors
+                db.commit()
+
+            # Section 17: Analytical Risk Calculation with Operational Dampening
             risk_eval = RiskEngine.evaluate_risk(
                 features=feat_safe,
                 classification=pred_class,
                 spatial_context=spatial_context,
                 temporal_data=temporal_data,
-                satellite_data=satellite_data
+                satellite_data=satellite_data,
+                discrimination_data=discrimination_data,
+                propagation_data=temporal_data.get("propagation")
             )
             risk_score = risk_eval["risk_score"]
             risk_level = risk_eval["risk_level"]
+
+            # Attach multimodal intelligence to breakdown
+            breakdown_combined = dict(risk_eval["breakdown"])
+            breakdown_combined["discrimination"] = discrimination_data
+            breakdown_combined["evidence_fusion"] = evidence_fusion
 
             # Persist RiskAssessment
             risk_rec = db.query(RiskAssessment).filter(RiskAssessment.event_id == event.id).first()
@@ -399,7 +492,7 @@ class PipelineRunner:
                     risk_score=risk_score,
                     risk_level=risk_level,
                     risk_model_version=risk_eval["risk_model_version"],
-                    breakdown_json=risk_eval["breakdown"],
+                    breakdown_json=breakdown_combined,
                     input_snapshot_json=risk_eval["input_snapshot"],
                     calculated_at=datetime.now(timezone.utc)
                 )
@@ -407,17 +500,21 @@ class PipelineRunner:
             else:
                 risk_rec.risk_score = risk_score
                 risk_rec.risk_level = risk_level
-                risk_rec.breakdown_json = risk_eval["breakdown"]
+                risk_rec.breakdown_json = breakdown_combined
                 risk_rec.calculated_at = datetime.now(timezone.utc)
             db.commit()
 
             risk_result = {
                 "risk_score": risk_score,
                 "risk_level": risk_level,
-                "breakdown": risk_eval["breakdown"]
+                "risk_reasons": risk_eval.get("risk_reasons", []),
+                "breakdown": breakdown_combined,
+                "discrimination": discrimination_data,
+                "evidence_fusion": evidence_fusion
             }
             cls._record_stage_success(db, stage_risk, time.perf_counter() - t0, risk_result)
             stages_executed.append("RISK_ASSESSMENT")
+
         except Exception as e:
             cls._record_stage_failure(db, stage_risk, time.perf_counter() - t0, e)
             logger.error(f"Stage RISK_ASSESSMENT failed: {e}")
@@ -455,16 +552,33 @@ class PipelineRunner:
         created_alerts = []
         try:
             # Check incident-level cooldown to prevent alert storms
-            # If an alert was created for this incident within ALERT_COOLDOWN_MINUTES, suppress duplicate
+            # If an alert was created for this incident within ALERT_COOLDOWN_MINUTES, check for severity escalation
             cooldown_cutoff = datetime.now(timezone.utc) - timedelta(minutes=settings.ALERT_COOLDOWN_MINUTES)
             existing_incident_alert = None
             if incident:
                 existing_incident_alert = db.query(Alert).filter(
                     Alert.incident_id == incident.id,
                     Alert.created_at >= cooldown_cutoff
-                ).first()
+                ).order_by(Alert.created_at.desc()).first()
 
+            # Escalation bypass: If severity increases or risk score surges significantly, allow alert
+            severity_ranks = {"INFO": 0, "LOW": 1, "MODERATE": 2, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
+            current_risk_score = float(risk_result.get("risk_score", 0.0))
+            current_risk_level = str(risk_result.get("risk_level", "LOW")).upper()
+            current_rank = severity_ranks.get(current_risk_level, 1)
+
+            is_escalation = False
             if existing_incident_alert:
+                existing_rank = severity_ranks.get(str(existing_incident_alert.severity).upper(), 1)
+                existing_payload = existing_incident_alert.incident_payload_json
+                if existing_payload and isinstance(existing_payload, dict):
+                    existing_risk = float(existing_payload.get("risk_score") or 0.0)
+                if current_rank > existing_rank:
+                    is_escalation = True
+                elif current_risk_score >= (existing_risk + 20.0) and current_risk_score >= 50.0:
+                    is_escalation = True
+
+            if existing_incident_alert and not is_escalation:
                 logger.info(f"Suppressed duplicate alert creation: Incident {incident.incident_code} already has active alert {existing_incident_alert.alert_code}")
                 cls._record_stage_success(db, stage_alert, time.perf_counter() - t0, {
                     "alert_count": 0,

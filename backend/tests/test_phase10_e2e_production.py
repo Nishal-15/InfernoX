@@ -509,7 +509,7 @@ def test_complete_e2e_event_pipeline(client_and_session):
     assert data["status"] in ["SUCCESS", "COMPLETED"]
     assert data["event_id"] > 0
     assert data["risk_score"] > 0
-    assert data["risk_level"] in ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+    assert data["risk_level"] in ["LOW", "MODERATE", "MEDIUM", "HIGH", "CRITICAL"]
 
     # Verify pipeline stage records
     stages = session.query(PipelineStageRun).filter(PipelineStageRun.event_id == data["event_id"]).all()

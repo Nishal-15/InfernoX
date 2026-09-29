@@ -124,7 +124,7 @@ class FirmsIngestionService:
                     track=normalized.track
                 )
                 stmt = stmt.on_conflict_do_nothing(
-                    constraint='_thermal_event_uc'
+                    index_elements=['source', 'satellite', 'detected_at', 'latitude', 'longitude']
                 )
                 
                 exec_result = db.execute(stmt)
@@ -221,7 +221,7 @@ class FirmsIngestionService:
                 scan=normalized.scan,
                 track=normalized.track
             ).on_conflict_do_nothing(
-                constraint='_thermal_event_uc'
+                index_elements=['source', 'satellite', 'detected_at', 'latitude', 'longitude']
             )
 
             exec_result = db.execute(stmt)

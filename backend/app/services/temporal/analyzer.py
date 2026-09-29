@@ -151,6 +151,82 @@ class TemporalAnalyzer:
         hist_frps = [r.get("frp") for r in cluster_records if r.get("frp") and r.get("id") != current_id]
         baseline_mean_frp = (sum(hist_frps) / len(hist_frps)) if hist_frps else mean_frp
 
+        # Robust statistics: Median & MAD (Median Absolute Deviation)
+        sorted_frps = sorted(frp_values) if frp_values else []
+        n_frps = len(sorted_frps)
+        if n_frps > 0:
+            mid = n_frps // 2
+            median_frp = round((sorted_frps[mid] if n_frps % 2 != 0 else (sorted_frps[mid - 1] + sorted_frps[mid]) / 2.0), 1)
+            deviations = sorted(abs(x - median_frp) for x in sorted_frps)
+            mad_frp = round((deviations[mid] if n_frps % 2 != 0 else (deviations[mid - 1] + deviations[mid]) / 2.0), 1)
+        else:
+            median_frp = 0.0
+            mad_frp = 0.0
+
+        # FRP Acceleration and time since previous detection
+        frp_acceleration = 0.0
+        time_since_prev_hrs = None
+        curr_idx = -1
+        for idx, rec in enumerate(all_records):
+            if rec.get("id") == current_id and current_id is not None:
+                curr_idx = idx
+                break
+
+        if curr_idx > 0:
+            prev_event = all_records[curr_idx - 1]
+        elif curr_idx == -1 and len(all_records) >= 1:
+            curr_dt = get_dt(current_event)
+            preceding = [r for r in all_records if get_dt(r) < curr_dt]
+            prev_event = preceding[-1] if preceding else None
+        else:
+            prev_event = None
+
+        if prev_event is not None:
+            prev_dt = get_dt(prev_event)
+            curr_dt = get_dt(current_event)
+            prev_frp = float(prev_event.get("frp") or 0.0)
+            time_delta_hrs = (curr_dt - prev_dt).total_seconds() / 3600.0 if curr_dt > prev_dt else 0.0
+            time_since_prev_hrs = round(time_delta_hrs, 2)
+            if 0.1 <= time_delta_hrs <= 72.0:
+                frp_acceleration = round((current_frp - prev_frp) / time_delta_hrs, 2)
+
+        # Robust Z-Score: (current - median) / (1.4826 * MAD)
+        # Avoid unstable statistics when sample size is too small (< 4)
+        # Handle degenerate zero-variance baseline (MAD = 0) with 10% median / minimum floor
+        if event_count >= 4:
+            scale = 1.4826 * mad_frp
+            if scale <= 1e-4:
+                scale = max(0.10 * median_frp, 1.0)
+            robust_z_score = round(abs(current_frp - median_frp) / scale, 2)
+        else:
+            robust_z_score = 0.0
+
+        # Temporal confidence rating based on empirical sample size
+        if event_count >= 5:
+            temporal_conf = "HIGH"
+            baseline_rel = "SUFFICIENT_SAMPLE_SIZE"
+        elif event_count >= 3:
+            temporal_conf = "MEDIUM"
+            baseline_rel = "SUFFICIENT_SAMPLE_SIZE"
+        else:
+            temporal_conf = "LOW"
+            baseline_rel = "INSUFFICIENT_SAMPLE_SIZE"
+
+        # Persistence confidence score (0.0 to 1.0)
+        p_day_ratio = min(1.0, active_days / max(1, self.min_active_days_persistent))
+        p_count_ratio = min(1.0, event_count / 10.0)
+        persistence_confidence = round(0.6 * p_day_ratio + 0.4 * p_count_ratio, 2)
+
+        # Stationary thermal source vs spreading fire confidence
+        # Gas flares/refineries stay within tight spatial radius (< 350m) despite many detections
+        spread_rate_m_per_hr = round(spatial_spread_meters / max(1.0, duration_hours), 2)
+        if event_count >= 3 and spatial_spread_meters <= 400.0:
+            stationary_confidence = round(min(1.0, 0.5 + (0.5 * (1.0 - (spatial_spread_meters / 400.0)))), 2)
+        elif spatial_spread_meters > 800.0:
+            stationary_confidence = round(max(0.0, 0.3 - (spatial_spread_meters / 5000.0)), 2)
+        else:
+            stationary_confidence = 0.5
+
         status = self.determine_status(
             current_frp=current_frp,
             cluster_detection_count=event_count,
@@ -161,23 +237,39 @@ class TemporalAnalyzer:
         return {
             "status": "success",
             "temporal_status": status,
+            "temporal_confidence": temporal_conf,
+            "baseline_reliability": baseline_rel,
             "metrics": {
                 "event_count": event_count,
+                "sample_count": event_count,
                 "active_days": active_days,
                 "first_detection": first_detection.isoformat() if first_detection else None,
                 "last_detection": last_detection.isoformat() if last_detection else None,
                 "duration_hours": duration_hours,
                 "mean_frp": mean_frp,
+                "median_frp": median_frp,
+                "mad_frp": mad_frp,
                 "max_frp": max_frp,
+                "robust_z_score": robust_z_score,
                 "frp_std": frp_std,
                 "frp_deviation_ratio": frp_deviation_ratio,
+                "frp_anomaly_magnitude_mw": round(abs(current_frp - median_frp), 1),
+                "frp_acceleration_mw_per_hour": frp_acceleration,
+                "time_since_previous_detection_hours": time_since_prev_hrs,
                 "spatial_spread_meters": spatial_spread_meters,
                 "detection_frequency": detection_frequency,
+                "persistence_confidence": persistence_confidence,
+                "stationary_confidence": stationary_confidence,
+                "spread_rate_m_per_hour": spread_rate_m_per_hr,
+                "temporal_confidence": temporal_conf,
+                "baseline_reliability": baseline_rel,
                 "spatial_radius_m": self.radius_meters,
                 "lookback_days": self.lookback_days
             },
             "timeline": timeline
         }
+
+
 
     def analyze_event(self, db: Session, event_id: int) -> Dict[str, Any]:
         """

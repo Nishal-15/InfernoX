@@ -205,8 +205,17 @@ class AlertEngine:
 
         now_utc = datetime.now(timezone.utc)
 
+        # Check if event is a normal persistent operational flare (Section 19)
+        risk_reasons = risk_data.get("risk_reasons") or []
+        is_normal_operational = "EXPECTED_OPERATIONAL_THERMAL_SOURCE" in risk_reasons
+
         for rule in rules:
             if not cls.match_rule(rule, context):
+                continue
+
+            # Suppress non-critical alerts for verified normal persistent operational industrial sources
+            if is_normal_operational and rule.name not in ["CRITICAL_INDUSTRIAL_FIRE"]:
+                logger.info(f"Suppressed alert for event {event.id}: normal operational flare ({rule.name})")
                 continue
 
             # 3. Deduplication Check (Cooldown Window)
@@ -217,11 +226,13 @@ class AlertEngine:
                 Alert.event_id == event.id,
                 Alert.rule_id == rule.id,
                 Alert.created_at >= cutoff
-            ).first()
+            ).order_by(Alert.created_at.desc()).first()
 
             if recent_alert:
-                logger.info(f"Suppressed duplicate alert for event {event.id} and rule {rule.name} (cooldown: {rule.cooldown_minutes}m)")
-                continue
+                sev_ranks = {"INFO": 0, "LOW": 1, "MODERATE": 2, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
+                if sev_ranks.get(str(rule.severity).upper(), 0) <= sev_ranks.get(str(recent_alert.severity).upper(), 0):
+                    logger.info(f"Suppressed duplicate alert for event {event.id} and rule {rule.name} (cooldown: {rule.cooldown_minutes}m)")
+                    continue
 
             # 4. Resolve Recommended Recipient & Incident Payload
             routing = ResponseRoutingService.resolve_routing(
@@ -242,12 +253,21 @@ class AlertEngine:
                 f"Recommended action: {routing['recommended_action']}"
             )
 
+            what_changed = (
+                "Abnormal thermal surge detected exceeding historical baseline"
+                if "ABNORMAL_FRP_SPIKE" in risk_reasons or temporal_data.get("status") == "ABNORMAL"
+                else "New thermal anomaly detection requiring initial evaluation"
+            )
+
             incident_payload = {
                 "incident_id": alert_code,
                 "event_id": event.id,
                 "event_code": f"INF-2026-{event.id:06d}",
+                "why_alerted": f"Rule {rule.name} matched: {rule.description}",
+                "what_changed": what_changed,
                 "location": {
                     "latitude": event.latitude,
+
                     "longitude": event.longitude
                 },
                 "detection_time": event.detected_at.isoformat() if event.detected_at else now_utc.isoformat(),

@@ -154,12 +154,12 @@ export const SihDemoController: React.FC<SihDemoControllerProps> = ({
       phase: "Stage 7: Machine Learning",
       badge: "XGBOOST v1.0",
       icon: Cpu,
-      description: "Multi-modal feature vector is evaluated by the production XGBoost classifier. Predicts with 94.2% probability that the event is an Industrial Flare Thermal Anomaly.",
+      description: "Multi-modal feature vector is evaluated by the production XGBoost classifier. Predicts that the event is an Industrial Gas Flare (GAS_FLARE).",
       technicalDetails: [
-        "Model Version: xgb-v1 (Trained on verified industrial & wildfire corpora)",
-        "Classification: INDUSTRIAL_THERMAL_ANOMALY (Gas Flare / Petrochemical)",
-        "Model Probability: 0.942 | Confidence Score: 94.2%",
-        "Feature Schema: 14 normalized geospatial & radiometric attributes"
+        "Model Version: xgb-v1 (Operational 6-class XGBoost classifier)",
+        "Classification: GAS_FLARE (Stationary petrochemical flaring signature)",
+        "Multi-modal Feature Schema: 27 normalized geospatial, temporal & radiometric attributes",
+        "Evaluation Status: Model Implemented — Continuous Retraining Enabled"
       ],
       targetTab: "dashboard"
     },

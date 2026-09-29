@@ -13,10 +13,10 @@
     "WILDFIRE"
   ],
   "metrics": {
-    "accuracy": 0.3333,
-    "macro_precision": 0.125,
-    "macro_recall": 0.25,
-    "macro_f1": 0.1667,
+    "accuracy": 0.6667,
+    "macro_precision": 0.5,
+    "macro_recall": 0.6667,
+    "macro_f1": 0.5556,
     "per_class": {
       "AGRICULTURAL_BURNING": {
         "precision": 0.0,
@@ -44,9 +44,9 @@
         "f1_score": 0.0
       },
       "WILDFIRE": {
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1_score": 0.0
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0
       }
     },
     "confusion_matrix": {
@@ -103,9 +103,9 @@
           0,
           0,
           0,
-          1,
           0,
-          0
+          0,
+          1
         ]
       ]
     }
@@ -140,14 +140,16 @@
     "abnormality_score"
   ],
   "feature_importances": {
-    "spatial_spread_meters": 0.1726,
-    "active_days": 0.1693,
-    "detection_count": 0.1675,
-    "confidence": 0.1605,
-    "mean_frp": 0.1473,
-    "frp": 0.1247,
-    "ndvi": 0.0577,
-    "frp_deviation_ratio": 0.0005,
+    "detection_count": 0.1679,
+    "spatial_spread_meters": 0.1547,
+    "active_days": 0.1513,
+    "confidence": 0.1153,
+    "is_industrial_land": 0.1017,
+    "frp": 0.0919,
+    "ndvi": 0.0731,
+    "mean_frp": 0.0674,
+    "nbr": 0.0574,
+    "frp_deviation_ratio": 0.0192,
     "brightness_temperature": 0.0,
     "duration_hours": 0.0,
     "max_frp": 0.0,
@@ -155,12 +157,10 @@
     "detection_frequency": 0.0,
     "temporal_status_code": 0.0,
     "distance_to_industrial_facility": 0.0,
-    "is_industrial_land": 0.0,
     "land_cover_code": 0.0,
     "land_cover_category_code": 0.0,
     "has_satellite_data": 0.0,
     "cloud_coverage": 0.0,
-    "nbr": 0.0,
     "ndwi": 0.0,
     "swir_nir_ratio": 0.0,
     "burn_scar_detected": 0.0,
@@ -178,9 +178,9 @@
     "test_groups": 3
   },
   "library_versions": {
-    "xgboost": "3.4.1",
+    "xgboost": "2.0.3",
     "scikit-learn": "1.9.1",
-    "numpy": "2.5.3"
+    "numpy": "2.4.6"
   },
   "calibration_method": "uncalibrated_model_probability",
   "is_calibrated": false

@@ -122,11 +122,46 @@ class MLClassifier(ClassifierInterface):
                 cls_name: round(float(proba_arr[i]), 4)
                 for i, cls_name in enumerate(self.classes)
             }
+
+            # Normalized prediction entropy: H = -sum(p * log(p)) / log(K)
+            n_classes = len(self.classes)
+            if n_classes > 1:
+                entropy_raw = -sum(p * np.log(p + 1e-12) for p in proba_arr if p > 0.0)
+                norm_entropy = round(float(entropy_raw / np.log(n_classes)), 3)
+            else:
+                norm_entropy = 0.0
+
+            # Confidence tier categorization (strictly model probability tier, not calibrated confidence)
+            if pred_prob >= 0.80:
+                conf_tier = "HIGH_CONFIDENCE"
+            elif pred_prob >= 0.60:
+                conf_tier = "MEDIUM_CONFIDENCE"
+            elif pred_prob >= 0.40:
+                conf_tier = "LOW_CONFIDENCE"
+            else:
+                conf_tier = "UNCERTAIN"
+
+            # Section 15: Out-of-Distribution / Low Support candidate detection
+            if norm_entropy > 0.85 or pred_prob < 0.35:
+                ood_status = "OUT_OF_DISTRIBUTION_CANDIDATE"
+                ood_reason = f"High normalized prediction entropy ({norm_entropy}) or low top probability ({pred_prob:.2f}) indicates model confusion across classes."
+            elif pred_prob < 0.50 or (features.active_days == 1 and features.detection_count == 1 and not features.has_satellite_data):
+                ood_status = "LOW_SUPPORT"
+                ood_reason = "Isolated single detection lacking corroborating satellite evidence or historical temporal support."
+            else:
+                ood_status = "IN_DISTRIBUTION"
+                ood_reason = "Feature vector aligns with operational distribution."
+
         except Exception as e:
             logger.error(f"ML inference error: {e}")
             if self.fallback_to_prototype:
                 proto = PrototypeClassifier().classify(features)
                 proto["is_fallback"] = True
+                proto["inference_mode"] = "DETERMINISTIC_FALLBACK"
+                proto["confidence_tier"] = "LOW_CONFIDENCE"
+                proto["model_probability_tier"] = "LOW_CONFIDENCE"
+                proto["ood_status"] = "OUT_OF_DISTRIBUTION_CANDIDATE"
+                proto["ood_reason"] = "Model inference exception; fell back to deterministic heuristic."
                 proto["classification_source"] = "Prototype heuristic engine (Inference Error Fallback)"
                 return proto
             raise
@@ -139,7 +174,14 @@ class MLClassifier(ClassifierInterface):
             "classification": pred_class,
             "model_probability": round(pred_prob, 3),
             "confidence_score": round(pred_prob * 100.0, 1),
+            "confidence_tier": conf_tier,
+            "model_probability_tier": conf_tier,
             "confidence_type": "model_probability",
+            "prediction_entropy": norm_entropy,
+            "ood_status": ood_status,
+            "ood_reason": ood_reason,
+            "evaluation_dataset_status": "MODEL EVALUATION DATASET INSUFFICIENT",
+            "inference_mode": "XGBOOST",
             "model_type": self.metadata.get("model_type", "xgboost"),
             "model_version": self.model_version,
             "feature_schema_version": self.metadata.get("feature_schema_version", "v2.0"),
@@ -149,6 +191,8 @@ class MLClassifier(ClassifierInterface):
             "is_fallback": False,
             "classification_source": f"XGBoost {self.model_version}"
         }
+
+
 
     def _compute_feature_attributions(
         self,
@@ -231,3 +275,22 @@ class MLClassifier(ClassifierInterface):
             factors.append("Sentinel-2 optical evidence not available for this observation window (or obscured by cloud coverage).")
 
         return factors
+
+    @staticmethod
+    def _compute_probability_tier(max_prob: float, entropy: float = 0.0) -> str:
+        if max_prob >= 0.80:
+            return "HIGH_CONFIDENCE"
+        elif max_prob >= 0.60:
+            return "MEDIUM_CONFIDENCE"
+        elif max_prob >= 0.40:
+            return "LOW_CONFIDENCE"
+        return "UNCERTAIN"
+
+    @staticmethod
+    def _detect_ood_candidate(entropy: float, top_margin: float = 0.0, pred_prob: float = 0.5) -> str:
+        if entropy > 0.85 or pred_prob < 0.35:
+            return "OUT_OF_DISTRIBUTION_CANDIDATE"
+        elif pred_prob < 0.50:
+            return "LOW_SUPPORT"
+        return "IN_DISTRIBUTION"
+

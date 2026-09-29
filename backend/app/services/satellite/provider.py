@@ -125,8 +125,32 @@ class Sentinel2Provider(BaseSatelliteProvider):
                             nir=0.28, swir1=0.20, swir2=0.15
                         )
 
+                        # Determine satellite confidence tier and scientific spectral diagnosis
+                        is_burn = spectral_data["burn_scar_indicator"]
+                        swir_ratio = spectral_data["indices"].get("swir_nir_ratio", 0.0)
+                        ndvi_val = spectral_data["indices"].get("ndvi", 0.0)
+
+                        if cloud_pct > max_cloud_cover:
+                            tier = "SATELLITE_INCONCLUSIVE"
+                            diag = "CLOUD_OBSCURED"
+                        elif is_burn:
+                            tier = "SATELLITE_CONFIRMED"
+                            diag = "BURN_SCAR_SUPPORT"
+                        elif swir_ratio > 1.2 and ndvi_val < 0.35:
+                            tier = "SATELLITE_CONFIRMED"
+                            diag = "VEGETATION_FIRE_SUPPORT"
+                        elif swir_ratio > 1.1:
+                            tier = "SATELLITE_SUPPORTING"
+                            diag = "INDUSTRIAL_SURFACE_SUPPORT"
+                        else:
+                            tier = "SATELLITE_SUPPORTING"
+                            diag = "NO_CLEAR_SPECTRAL_SIGNAL"
+
                         return {
                             "satellite_evidence_available": True,
+                            "satellite_confidence_tier": tier,
+                            "spectral_diagnosis": diag,
+                            "evidence_status": "STAC_LIVE_CONFIRMED",
                             "provider": self.provider_name,
                             "processing_level": self.processing_level,
                             "scene_id": scene_id,
@@ -166,6 +190,9 @@ class Sentinel2Provider(BaseSatelliteProvider):
         if cloud_pct > max_cloud_cover:
             return {
                 "satellite_evidence_available": False,
+                "satellite_confidence_tier": "SATELLITE_INCONCLUSIVE",
+                "spectral_diagnosis": "CLOUD_OBSCURED",
+                "evidence_status": "REJECTED_CLOUD",
                 "provider": self.provider_name,
                 "processing_level": self.processing_level,
                 "scene_id": scene_id,
@@ -190,9 +217,16 @@ class Sentinel2Provider(BaseSatelliteProvider):
         swir2 = 0.18
 
         spectral = self._calculate_spectral_indices(red, green, blue, nir, swir1, swir2)
+        is_burn = spectral["burn_scar_indicator"]
+        swir_ratio = spectral["indices"].get("swir_nir_ratio", 0.0)
+
+        diag = "BURN_SCAR_SUPPORT" if is_burn else ("INDUSTRIAL_SURFACE_SUPPORT" if swir_ratio > 1.1 else "NO_CLEAR_SPECTRAL_SIGNAL")
 
         return {
             "satellite_evidence_available": True,
+            "satellite_confidence_tier": "SATELLITE_SUPPORTING",
+            "spectral_diagnosis": diag,
+            "evidence_status": "SYNTHESIZED_FALLBACK",
             "provider": self.provider_name,
             "processing_level": self.processing_level,
             "scene_id": scene_id,
@@ -204,6 +238,8 @@ class Sentinel2Provider(BaseSatelliteProvider):
             "burn_scar_indicator": spectral["burn_scar_indicator"],
             "is_real_stac": False
         }
+
+
 
     @staticmethod
     def _calculate_spectral_indices(
@@ -225,16 +261,23 @@ class Sentinel2Provider(BaseSatelliteProvider):
         ndvi = (nir - red) / (nir + red) if (nir + red) > 0 else 0.0
         
         # NBR (Normalized Burn Ratio)
-        nbr = (nir - swir2) / (nir + swir2) if (nir + swir2) > 0 else 0.0
+        nbr_denom = nir + swir2
+        nbr = (nir - swir2) / nbr_denom if nbr_denom > 0 else 0.0
 
         # NDWI (Normalized Difference Water Index)
-        ndwi = (green - nir) / (green + nir) if (green + nir) > 0 else 0.0
+        ndwi_denom = green + nir
+        ndwi = (green - nir) / ndwi_denom if ndwi_denom > 0 else 0.0
 
         # SWIR2 / NIR ratio (elevated > 0.8 in high-temperature subpixel anomalies)
         swir_nir_ratio = round(swir2 / nir, 3) if nir > 0 else 0.0
 
-        # Burn scar detected if NBR is severely depressed (< 0.10)
-        burn_scar = bool(nbr < 0.10)
+        # Physical burn scar detection:
+        # 1. Surface reflectance floor (nir + swir2 >= 0.05) eliminates nodata/black pixels
+        # 2. Water exclusion (ndwi > 0.20 with low NIR) eliminates false burns on water bodies
+        # 3. True burn scar requires depressed NBR (< 0.10) with SWIR2 >= 0.05
+        has_signal = (nbr_denom >= 0.05)
+        is_water = (ndwi > 0.20 and nir < 0.05)
+        burn_scar = bool(has_signal and not is_water and nbr < 0.10 and swir2 >= 0.05)
 
         return {
             "indices": {

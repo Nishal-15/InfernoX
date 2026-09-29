@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import logging
 import math
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -52,6 +52,7 @@ class WorldCoverProvider(BaseLandCoverProvider):
         self.source = "ESA WorldCover 10m"
         self.dataset_version = dataset_version or settings.ESA_WORLDCOVER_VERSION
         self.classes = WORLDCOVER_CLASSES
+        self._cache: Dict[Tuple[float, float], Dict[str, Any]] = {}
 
     @staticmethod
     def get_tile_id(latitude: float, longitude: float) -> str:
@@ -71,12 +72,17 @@ class WorldCoverProvider(BaseLandCoverProvider):
     def get_land_cover(self, latitude: float, longitude: float) -> Optional[Dict[str, Any]]:
         """
         Retrieves the ESA WorldCover land cover class and higher-level category
-        for a given geographic coordinate.
+        for a given geographic coordinate. Uses ~11m grid coordinate quantization for caching.
         """
         # Validate coordinates
         if not (-90.0 <= latitude <= 90.0 and -180.0 <= longitude <= 180.0):
             logger.warning(f"Invalid coordinates for land cover query: lat={latitude}, lon={longitude}")
             return None
+
+        # Quantize to 4 decimal places (~11m resolution, matching 10m pixel size)
+        q_key = (round(latitude, 4), round(longitude, 4))
+        if q_key in self._cache:
+            return self._cache[q_key]
 
         tile_id = self.get_tile_id(latitude, longitude)
         
@@ -85,7 +91,7 @@ class WorldCoverProvider(BaseLandCoverProvider):
 
         class_info = self.classes.get(code, {"name": "Unknown / Unclassified", "category": "OTHER"})
 
-        return {
+        res = {
             "land_cover_code": code,
             "land_cover_class": class_info["name"],
             "land_cover_category": class_info["category"],
@@ -97,6 +103,13 @@ class WorldCoverProvider(BaseLandCoverProvider):
             "confidence": confidence,
             "is_prototype": False
         }
+
+        # Keep cache bounded
+        if len(self._cache) > 5000:
+            self._cache.clear()
+        self._cache[q_key] = res
+        return res
+
 
     def _sample_worldcover_grid(self, latitude: float, longitude: float, tile_id: str) -> tuple[int, float]:
         """
