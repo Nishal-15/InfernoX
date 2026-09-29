@@ -67,6 +67,7 @@ class ConnectionManager:
         """
         envelope = {
             "event": event_type,
+            "schema_version": "2.0",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "organization_id": organization_id,
             "payload": payload
@@ -97,6 +98,16 @@ class ConnectionManager:
 
         for dead in dead_connections:
             self.disconnect(dead)
+
+    async def broadcast_heartbeat(self) -> None:
+        """Emits a periodic keepalive and telemetry frame to all active subscribers."""
+        await self.broadcast("heartbeat", {
+            "status": "HEALTHY",
+            "active_clients": len(self.active_connections),
+            "buffered_events": len(self.event_buffer),
+            "pipeline_state": "ACTIVE"
+        })
+
 
     def get_recent_events(
         self,

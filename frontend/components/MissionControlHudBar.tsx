@@ -74,9 +74,9 @@ export const MissionControlHudBar: React.FC<MissionControlHudBarProps> = ({
         <div className="hidden md:flex items-center gap-3 text-[11px]">
           <div className="flex items-center gap-2 text-slate-400">
             <span className="text-slate-500">FEED:</span>
-            <span className="text-emerald-400 font-semibold flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-              NASA FIRMS NRT (VIIRS)
+            <span className="text-cyan-400 font-semibold flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+              NASA FIRMS VIIRS
             </span>
           </div>
 
@@ -84,7 +84,7 @@ export const MissionControlHudBar: React.FC<MissionControlHudBarProps> = ({
 
           <div className="flex items-center gap-2 text-slate-400">
             <span className="text-slate-500">MODEL:</span>
-            <span className="text-purple-300 font-semibold">XGBoost v1.0 (94.2% F1)</span>
+            <span className="text-purple-300 font-semibold">XGBoost xgb-v1 (6 Classes)</span>
           </div>
 
           {onTriggerSync && (

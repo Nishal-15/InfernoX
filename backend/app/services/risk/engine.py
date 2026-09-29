@@ -5,6 +5,18 @@ from sqlalchemy.orm import Session
 from app.models.risk_alert import RiskAssessment
 
 
+class RiskResult(dict):
+    """
+    Dual dictionary and attribute-accessible risk evaluation result container.
+    """
+    def __getattr__(self, name: str) -> Any:
+        if name in self:
+            return self[name]
+        if name == "total_score":
+            return self.get("risk_score")
+        raise AttributeError(f"'RiskResult' object has no attribute '{name}'")
+
+
 class RiskEngine:
     """
     Dedicated analytical Risk Engine for InfernoX.
@@ -46,16 +58,30 @@ class RiskEngine:
         classification: str = "UNKNOWN",
         spatial_context: Optional[Dict[str, Any]] = None,
         temporal_data: Optional[Dict[str, Any]] = None,
-        satellite_data: Optional[Dict[str, Any]] = None
+        satellite_data: Optional[Dict[str, Any]] = None,
+        discrimination_data: Optional[Dict[str, Any]] = None,
+        propagation_data: Optional[Dict[str, Any]] = None,
+        **kwargs
     ) -> Dict[str, Any]:
         """
         Calculates normalized risk score (0-100), risk level, and detailed explanation breakdown.
+        Accounts for operational expected thermal contexts vs abnormal surges.
         Safe against missing or partial feature inputs.
         """
+        if discrimination_data is None and "discrimination" in kwargs:
+            discrimination_data = kwargs["discrimination"]
+        if propagation_data is None and "propagation_metrics" in kwargs:
+            propagation_data = kwargs["propagation_metrics"]
+        if classification == "UNKNOWN" and "ml_prediction" in kwargs:
+            ml_pred = kwargs["ml_prediction"]
+            classification = ml_pred.get("predicted_class", "UNKNOWN") if isinstance(ml_pred, dict) else str(ml_pred)
+
         features = features or {}
         spatial_context = spatial_context or {}
         temporal_data = temporal_data or {}
         satellite_data = satellite_data or {}
+        discrimination_data = discrimination_data or {}
+        propagation_data = propagation_data or {}
 
         breakdown_factors: List[Dict[str, Any]] = []
 
@@ -213,15 +239,59 @@ class RiskEngine:
 
         # Total Calculation & Level Assignment
         total_raw = sum(f["contribution_points"] for f in breakdown_factors)
+
+        # Operational Context Modulation (Section 6 & 17)
+        # Prevent normal persistent refinery flares from triggering false critical risk
+        exp_context = discrimination_data.get("expected_thermal_context")
+        risk_reasons: List[str] = []
+
+        if exp_context == "EXPECTED_INDUSTRIAL_THERMAL_CONTEXT":
+            # Cap risk at MODERATE (max 42.0 pts) for normal operational flares
+            total_raw = min(42.0, total_raw)
+            risk_reasons.append("EXPECTED_OPERATIONAL_THERMAL_SOURCE")
+        elif exp_context == "UNEXPECTED_INDUSTRIAL_THERMAL_CONTEXT":
+            # Elevate risk for unexpected flare surge inside hazardous plant
+            total_raw = min(100.0, total_raw + 15.0)
+            risk_reasons.append("UNEXPECTED_INDUSTRIAL_THERMAL_SURGE")
+
         risk_score = round(max(0.0, min(100.0, total_raw)), 1)
         risk_level = cls._determine_risk_level(risk_score)
 
-        return {
+        if dist_m is not None and float(dist_m) <= 250.0:
+            risk_reasons.append("CRITICAL_INDUSTRIAL_PROXIMITY")
+        elif dist_m is not None and float(dist_m) <= 750.0:
+            risk_reasons.append("HIGH_INDUSTRIAL_PROXIMITY")
+
+        if frp >= 80.0:
+            risk_reasons.append("EXTREME_THERMAL_INTENSITY")
+        elif frp >= 40.0:
+            risk_reasons.append("ELEVATED_THERMAL_INTENSITY")
+
+        if temporal_status == "ABNORMAL" or frp_spike_ratio >= 2.5:
+            risk_reasons.append("ABNORMAL_FRP_SPIKE")
+        if active_days >= 5 or temporal_status == "PERSISTENT":
+            risk_reasons.append("PERSISTENT_THERMAL_SOURCE")
+
+        if burn_scar or (swir_ratio is not None and swir_ratio > 1.2):
+            risk_reasons.append("SPECTRAL_BURN_SCAR_CONFIRMED")
+
+        if class_key == "INDUSTRIAL_FIRE":
+            risk_reasons.append("HIGH_CONSEQUENCE_INDUSTRIAL_FIRE")
+        elif class_key == "WILDFIRE" and frp >= 30.0:
+            risk_reasons.append("PROPAGATING_WILDFIRE_THREAT")
+
+        if not risk_reasons:
+            risk_reasons.append("BASELINE_OBSERVATION")
+
+
+        return RiskResult({
             "risk_score": risk_score,
             "risk_level": risk_level,
             "risk_model_version": cls.MODEL_VERSION,
+            "risk_reasons": risk_reasons,
             "breakdown": {
                 "factors": breakdown_factors,
+                "risk_reasons": risk_reasons,
                 "total_score": risk_score,
                 "risk_level": risk_level,
                 "model_version": cls.MODEL_VERSION
@@ -235,7 +305,8 @@ class RiskEngine:
                 "satellite_evidence_available": bool(has_sat)
             },
             "calculated_at": datetime.now(timezone.utc).isoformat()
-        }
+        })
+
 
     @classmethod
     def _determine_risk_level(cls, score: float) -> str:

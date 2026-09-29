@@ -185,12 +185,13 @@ export const Header: React.FC<HeaderProps> = ({
                 <button onClick={() => setShowProvenancePopover(false)} className="text-slate-400 hover:text-white text-xs">✕</button>
               </div>
               <div className="mt-3 space-y-2 text-[11px]">
-                <div className="flex justify-between"><span className="text-slate-500">Provider:</span><span className="text-slate-200 font-semibold">NASA FIRMS NRT API</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Provider:</span><span className="text-slate-200 font-semibold">NASA FIRMS API</span></div>
                 <div className="flex justify-between"><span className="text-slate-500">Canonical:</span><span className="text-cyan-400 truncate max-w-[170px]">firms.modaps.eosdis.nasa.gov</span></div>
                 <div className="flex justify-between"><span className="text-slate-500">Sensors:</span><span className="text-slate-300">VIIRS (SNPP / NOAA-20/21)</span></div>
-                <div className="flex justify-between"><span className="text-slate-500">Operational Key:</span><span className="text-emerald-400">56cb3...f9f9 (Active)</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Status:</span><span className={isLive ? "text-emerald-400 font-semibold" : "text-amber-400 font-semibold"}>{isLive ? "LIVE STREAM ACTIVE" : "HISTORICAL / DEMO (Key Required for Live)"}</span></div>
                 <div className="flex justify-between"><span className="text-slate-500">Enrichment:</span><span className="text-slate-300">OpenStreetMap + PostGIS</span></div>
-                <div className="flex justify-between"><span className="text-slate-500">Inference:</span><span className="text-purple-400 font-semibold">XGBoost v1.0 (94.2% F1)</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Model:</span><span className="text-purple-400 font-semibold">XGBoost xgb-v1 (6 Classes)</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Validation:</span><span className="text-slate-400">Benchmark Dataset Required</span></div>
               </div>
             </div>
           )}
